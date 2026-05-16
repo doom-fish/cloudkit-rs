@@ -178,3 +178,242 @@ public func ckDatabaseExecuteQueryOperationSync(
         return Int32(error.code)
     }
 }
+
+@_cdecl("ck_database_execute_fetch_records_sync")
+public func ckDatabaseExecuteFetchRecordsSync(
+    _ containerIdentifier: UnsafePointer<CChar>?,
+    _ databaseScope: Int32,
+    _ operationJSON: UnsafePointer<CChar>?,
+    _ outJSON: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?,
+    _ outErrorJSON: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?
+) -> Int32 {
+    do {
+        let database = try ckMakeDatabase(containerIdentifier: containerIdentifier, scopeRaw: databaseScope)
+        let payload = try ckDecodeJSON(operationJSON, as: CKFetchRecordsOperationPayload.self)
+        let operation = CKFetchRecordsOperation(recordIDs: payload.recordIDs.map(ckDecodeRecordID))
+        operation.desiredKeys = payload.desiredKeys
+
+        var records: [CKRecordPayload] = []
+        var results: [CKRecordResultPayload] = []
+        let completion = CKResultHolder<CKFetchRecordsResultPayload>()
+        let semaphore = DispatchSemaphore(value: 0)
+
+        operation.perRecordCompletionBlock = { record, recordID, error in
+            guard let recordID else { return }
+            if let error = error as NSError? {
+                results.append(
+                    CKRecordResultPayload(
+                        recordID: ckEncodeRecordID(recordID),
+                        record: nil,
+                        error: ckErrorPayload(from: error)
+                    )
+                )
+                return
+            }
+            let payload = record.flatMap { try? ckEncodeRecord($0) }
+            if let payload { records.append(payload) }
+            results.append(
+                CKRecordResultPayload(
+                    recordID: ckEncodeRecordID(recordID),
+                    record: payload,
+                    error: nil
+                )
+            )
+        }
+        operation.fetchRecordsCompletionBlock = { _, error in
+            completion.value = CKFetchRecordsResultPayload(
+                records: records,
+                results: results,
+                operationError: (error as NSError?).map(ckErrorPayload)
+            )
+            semaphore.signal()
+        }
+
+        database.add(operation)
+        if semaphore.wait(timeout: .now() + 30) == .timedOut {
+            throw ckTimeoutNSError("CloudKit CKFetchRecordsOperation")
+        }
+        guard let result = completion.value else {
+            throw ckBridgeNSError(code: CKR_FAILURE, message: "CKFetchRecordsOperation completed without a result payload")
+        }
+        outJSON?.pointee = ckCString(try ckEncodeJSON(result))
+        return CKR_OK
+    } catch let error as NSError {
+        ckWriteError(error, to: outErrorJSON)
+        return Int32(error.code)
+    }
+}
+
+@_cdecl("ck_database_execute_fetch_database_changes_sync")
+public func ckDatabaseExecuteFetchDatabaseChangesSync(
+    _ containerIdentifier: UnsafePointer<CChar>?,
+    _ databaseScope: Int32,
+    _ operationJSON: UnsafePointer<CChar>?,
+    _ outJSON: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?,
+    _ outErrorJSON: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?
+) -> Int32 {
+    do {
+        let database = try ckMakeDatabase(containerIdentifier: containerIdentifier, scopeRaw: databaseScope)
+        let payload = try ckDecodeJSON(operationJSON, as: CKFetchDatabaseChangesOperationPayload.self)
+        let operation = CKFetchDatabaseChangesOperation(previousServerChangeToken: try payload.previousServerChangeToken.map(ckDecodeServerChangeToken))
+        if let resultsLimit = payload.resultsLimit {
+            operation.resultsLimit = resultsLimit
+        }
+        operation.fetchAllChanges = payload.fetchAllChanges
+
+        var changedZoneIDs: [CKRecordZoneIDPayload] = []
+        var deletedZoneIDs: [CKRecordZoneIDPayload] = []
+        var purgedZoneIDs: [CKRecordZoneIDPayload] = []
+        var encryptedDataResetZoneIDs: [CKRecordZoneIDPayload] = []
+        var updatedServerChangeTokens: [CKServerChangeTokenPayload] = []
+        let completion = CKResultHolder<CKFetchDatabaseChangesResultPayload>()
+        let semaphore = DispatchSemaphore(value: 0)
+
+        operation.recordZoneWithIDChangedBlock = { zoneID in
+            changedZoneIDs.append(ckEncodeZoneID(zoneID))
+        }
+        operation.recordZoneWithIDWasDeletedBlock = { zoneID in
+            deletedZoneIDs.append(ckEncodeZoneID(zoneID))
+        }
+        operation.recordZoneWithIDWasPurgedBlock = { zoneID in
+            purgedZoneIDs.append(ckEncodeZoneID(zoneID))
+        }
+        operation.recordZoneWithIDWasDeletedDueToUserEncryptedDataResetBlock = { zoneID in
+            encryptedDataResetZoneIDs.append(ckEncodeZoneID(zoneID))
+        }
+        operation.changeTokenUpdatedBlock = { serverChangeToken in
+            updatedServerChangeTokens.append(ckEncodeServerChangeToken(serverChangeToken))
+        }
+        operation.fetchDatabaseChangesCompletionBlock = { serverChangeToken, moreComing, error in
+            completion.value = CKFetchDatabaseChangesResultPayload(
+                changedZoneIDs: changedZoneIDs,
+                deletedZoneIDs: deletedZoneIDs,
+                purgedZoneIDs: purgedZoneIDs,
+                encryptedDataResetZoneIDs: encryptedDataResetZoneIDs,
+                updatedServerChangeTokens: updatedServerChangeTokens,
+                serverChangeToken: serverChangeToken.map(ckEncodeServerChangeToken),
+                moreComing: moreComing,
+                operationError: (error as NSError?).map(ckErrorPayload)
+            )
+            semaphore.signal()
+        }
+
+        database.add(operation)
+        if semaphore.wait(timeout: .now() + 30) == .timedOut {
+            throw ckTimeoutNSError("CloudKit CKFetchDatabaseChangesOperation")
+        }
+        guard let result = completion.value else {
+            throw ckBridgeNSError(code: CKR_FAILURE, message: "CKFetchDatabaseChangesOperation completed without a result payload")
+        }
+        outJSON?.pointee = ckCString(try ckEncodeJSON(result))
+        return CKR_OK
+    } catch let error as NSError {
+        ckWriteError(error, to: outErrorJSON)
+        return Int32(error.code)
+    }
+}
+
+@_cdecl("ck_database_execute_fetch_record_zone_changes_sync")
+public func ckDatabaseExecuteFetchRecordZoneChangesSync(
+    _ containerIdentifier: UnsafePointer<CChar>?,
+    _ databaseScope: Int32,
+    _ operationJSON: UnsafePointer<CChar>?,
+    _ outJSON: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?,
+    _ outErrorJSON: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?
+) -> Int32 {
+    do {
+        let database = try ckMakeDatabase(containerIdentifier: containerIdentifier, scopeRaw: databaseScope)
+        let payload = try ckDecodeJSON(operationJSON, as: CKFetchRecordZoneChangesOperationPayload.self)
+
+        let zoneIDs = payload.zones.map { ckDecodeZoneID($0.zoneID) }
+        let configurations = Dictionary(uniqueKeysWithValues: try payload.zones.map { entry in
+            let configuration = CKFetchRecordZoneChangesOperation.ZoneConfiguration()
+            configuration.previousServerChangeToken = try entry.configuration.previousServerChangeToken.map(ckDecodeServerChangeToken)
+            if let resultsLimit = entry.configuration.resultsLimit {
+                configuration.resultsLimit = resultsLimit
+            }
+            configuration.desiredKeys = entry.configuration.desiredKeys
+            return (ckDecodeZoneID(entry.zoneID), configuration)
+        })
+        let operation = CKFetchRecordZoneChangesOperation(recordZoneIDs: zoneIDs, configurationsByRecordZoneID: configurations)
+        operation.fetchAllChanges = payload.fetchAllChanges
+
+        var zoneResults: [String: CKFetchRecordZoneResultPayload] = [:]
+        let completion = CKResultHolder<CKFetchRecordZoneChangesResultPayload>()
+        let semaphore = DispatchSemaphore(value: 0)
+
+        func zoneKey(for zoneID: CKRecordZone.ID) -> String {
+            "\(zoneID.zoneName)|\(zoneID.ownerName)"
+        }
+
+        func updateZoneResult(_ zoneID: CKRecordZone.ID, _ body: (inout CKFetchRecordZoneResultPayload) -> Void) {
+            let key = zoneKey(for: zoneID)
+            var result = zoneResults[key] ?? CKFetchRecordZoneResultPayload(
+                zoneID: ckEncodeZoneID(zoneID),
+                changedRecords: [],
+                deletedRecords: [],
+                updatedServerChangeTokens: [],
+                serverChangeToken: nil,
+                clientChangeTokenData: nil,
+                moreComing: false,
+                zoneError: nil
+            )
+            body(&result)
+            zoneResults[key] = result
+        }
+
+        operation.recordChangedBlock = { record in
+            updateZoneResult(record.recordID.zoneID) { result in
+                if let payload = try? ckEncodeRecord(record) {
+                    result.changedRecords.append(payload)
+                }
+            }
+        }
+        operation.recordWithIDWasDeletedBlock = { recordID, recordType in
+            updateZoneResult(recordID.zoneID) { result in
+                result.deletedRecords.append(
+                    CKDeletedRecordPayload(recordID: ckEncodeRecordID(recordID), recordType: recordType)
+                )
+            }
+        }
+        operation.recordZoneChangeTokensUpdatedBlock = { zoneID, serverChangeToken, clientChangeTokenData in
+            updateZoneResult(zoneID) { result in
+                if let serverChangeToken {
+                    result.updatedServerChangeTokens.append(ckEncodeServerChangeToken(serverChangeToken))
+                }
+                result.clientChangeTokenData = clientChangeTokenData.map { [UInt8]($0) }
+            }
+        }
+        operation.recordZoneFetchCompletionBlock = { zoneID, serverChangeToken, clientChangeTokenData, moreComing, error in
+            updateZoneResult(zoneID) { result in
+                result.serverChangeToken = serverChangeToken.map(ckEncodeServerChangeToken)
+                result.clientChangeTokenData = clientChangeTokenData.map { [UInt8]($0) }
+                result.moreComing = moreComing
+                result.zoneError = (error as NSError?).map(ckErrorPayload)
+            }
+        }
+        operation.fetchRecordZoneChangesCompletionBlock = { error in
+            let sortedZones = zoneResults.values.sorted {
+                ($0.zoneID.zoneName, $0.zoneID.ownerName) < ($1.zoneID.zoneName, $1.zoneID.ownerName)
+            }
+            completion.value = CKFetchRecordZoneChangesResultPayload(
+                zones: sortedZones,
+                operationError: (error as NSError?).map(ckErrorPayload)
+            )
+            semaphore.signal()
+        }
+
+        database.add(operation)
+        if semaphore.wait(timeout: .now() + 30) == .timedOut {
+            throw ckTimeoutNSError("CloudKit CKFetchRecordZoneChangesOperation")
+        }
+        guard let result = completion.value else {
+            throw ckBridgeNSError(code: CKR_FAILURE, message: "CKFetchRecordZoneChangesOperation completed without a result payload")
+        }
+        outJSON?.pointee = ckCString(try ckEncodeJSON(result))
+        return CKR_OK
+    } catch let error as NSError {
+        ckWriteError(error, to: outErrorJSON)
+        return Int32(error.code)
+    }
+}

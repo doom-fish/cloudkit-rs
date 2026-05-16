@@ -82,6 +82,28 @@ func ckDecodeJSON<T: Decodable>(_ cString: UnsafePointer<CChar>?, as type: T.Typ
     }
 }
 
+func ckArchiveSecureCoding(_ object: NSSecureCoding) throws -> [UInt8] {
+    do {
+        return [UInt8](try NSKeyedArchiver.archivedData(withRootObject: object, requiringSecureCoding: true))
+    } catch let error as NSError {
+        throw ckBridgeNSError(code: CKR_FAILURE, message: "Failed to archive secure coding object: \(error.localizedDescription)")
+    }
+}
+
+func ckDecodeSecureCodingObject<T: NSObject & NSSecureCoding>(_ archivedData: [UInt8], as type: T.Type) throws -> T {
+    do {
+        guard let object = try NSKeyedUnarchiver.unarchivedObject(ofClass: type, from: Data(archivedData)) else {
+            throw ckBridgeNSError(code: CKR_FAILURE, message: "Missing archived \(String(describing: type)) object")
+        }
+        return object
+    } catch let error as NSError {
+        if error.domain == CKR_BRIDGE_ERROR_DOMAIN {
+            throw error
+        }
+        throw ckBridgeNSError(code: CKR_INVALID_ARGUMENT, message: "Failed to decode archived \(String(describing: type)) object: \(error.localizedDescription)")
+    }
+}
+
 func ckErrorPayload(from error: NSError) -> CKErrorPayload {
     CKErrorPayload(
         domain: error.domain,

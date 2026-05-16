@@ -3,13 +3,15 @@ use core::ptr;
 
 use crate::container::CKContainer;
 use crate::error::CloudKitError;
+use crate::fetched_results::CKFetchedQueryResults;
 use crate::ffi;
 use crate::private::{
     box_closure, error_from_status, json_cstring, opt_cstring_ptr, optional_cstring_from_str,
-    parse_borrowed_error_ptr, parse_json_ptr, parse_json_str,
+    parse_borrowed_error_ptr, parse_json_ptr, parse_json_str, CKFetchedQueryResultsPayload,
 };
 use crate::query::CKQuery;
-use crate::record::{CKRecord, CKRecordID, CKRecordZoneID};
+use crate::record::{CKRecord, CKRecordID, CKRecordZone, CKRecordZoneID};
+use crate::subscription::CKAnySubscription;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CKDatabaseScope {
@@ -184,6 +186,261 @@ impl CKDatabase {
             );
         }
         Ok(())
+    }
+
+    pub fn fetch_query_results(
+        &self,
+        query: &CKQuery,
+        zone_id: Option<&CKRecordZoneID>,
+        desired_keys: Option<Vec<String>>,
+        results_limit: Option<usize>,
+    ) -> Result<CKFetchedQueryResults, CloudKitError> {
+        let identifier = optional_cstring_from_str(
+            self.container.container_identifier(),
+            "container identifier",
+        )?;
+        let query_json = json_cstring(&query.to_payload(), "query")?;
+        let zone_json = zone_id.map(CKRecordZoneID::to_payload);
+        let zone_json = match zone_json.as_ref() {
+            Some(zone) => Some(json_cstring(zone, "zone ID")?),
+            None => None,
+        };
+        let desired_keys_json = match desired_keys.as_ref() {
+            Some(desired_keys) => Some(json_cstring(desired_keys, "desired keys")?),
+            None => None,
+        };
+        let results_limit = i32::try_from(results_limit.unwrap_or_default()).map_err(|_| {
+            CloudKitError::bridge(-1, "results limit exceeds supported i32 range")
+        })?;
+        let mut out_json: *mut c_char = ptr::null_mut();
+        let mut out_error: *mut c_char = ptr::null_mut();
+        let status = unsafe {
+            ffi::ck_database_fetch_query_results_sync(
+                opt_cstring_ptr(&identifier),
+                self.database_scope as i32,
+                query_json.as_ptr(),
+                opt_cstring_ptr(&zone_json),
+                opt_cstring_ptr(&desired_keys_json),
+                results_limit,
+                &mut out_json,
+                &mut out_error,
+            )
+        };
+        if status != ffi::status::OK {
+            return Err(unsafe { error_from_status(status, out_error) });
+        }
+        let payload = unsafe {
+            parse_json_ptr::<CKFetchedQueryResultsPayload>(out_json, "fetched query results")?
+        };
+        Ok(CKFetchedQueryResults::from_payload(payload))
+    }
+
+    pub fn fetch_all_record_zones(&self) -> Result<Vec<CKRecordZone>, CloudKitError> {
+        let identifier = optional_cstring_from_str(
+            self.container.container_identifier(),
+            "container identifier",
+        )?;
+        let mut out_json: *mut c_char = ptr::null_mut();
+        let mut out_error: *mut c_char = ptr::null_mut();
+        let status = unsafe {
+            ffi::ck_database_fetch_all_record_zones_sync(
+                opt_cstring_ptr(&identifier),
+                self.database_scope as i32,
+                &mut out_json,
+                &mut out_error,
+            )
+        };
+        if status != ffi::status::OK {
+            return Err(unsafe { error_from_status(status, out_error) });
+        }
+        let payloads = unsafe {
+            parse_json_ptr::<Vec<crate::private::CKRecordZonePayload>>(out_json, "record zones")?
+        };
+        Ok(payloads.into_iter().map(CKRecordZone::from_payload).collect())
+    }
+
+    pub fn fetch_record_zone(&self, zone_id: &CKRecordZoneID) -> Result<CKRecordZone, CloudKitError> {
+        let identifier = optional_cstring_from_str(
+            self.container.container_identifier(),
+            "container identifier",
+        )?;
+        let zone_json = json_cstring(&zone_id.to_payload(), "zone ID")?;
+        let mut out_json: *mut c_char = ptr::null_mut();
+        let mut out_error: *mut c_char = ptr::null_mut();
+        let status = unsafe {
+            ffi::ck_database_fetch_record_zone_sync(
+                opt_cstring_ptr(&identifier),
+                self.database_scope as i32,
+                zone_json.as_ptr(),
+                &mut out_json,
+                &mut out_error,
+            )
+        };
+        if status != ffi::status::OK {
+            return Err(unsafe { error_from_status(status, out_error) });
+        }
+        let payload = unsafe {
+            parse_json_ptr::<crate::private::CKRecordZonePayload>(out_json, "record zone")?
+        };
+        Ok(CKRecordZone::from_payload(payload))
+    }
+
+    pub fn save_record_zone(&self, zone: &CKRecordZone) -> Result<CKRecordZone, CloudKitError> {
+        let identifier = optional_cstring_from_str(
+            self.container.container_identifier(),
+            "container identifier",
+        )?;
+        let zone_json = json_cstring(&zone.to_payload(), "record zone")?;
+        let mut out_json: *mut c_char = ptr::null_mut();
+        let mut out_error: *mut c_char = ptr::null_mut();
+        let status = unsafe {
+            ffi::ck_database_save_record_zone_sync(
+                opt_cstring_ptr(&identifier),
+                self.database_scope as i32,
+                zone_json.as_ptr(),
+                &mut out_json,
+                &mut out_error,
+            )
+        };
+        if status != ffi::status::OK {
+            return Err(unsafe { error_from_status(status, out_error) });
+        }
+        let payload = unsafe {
+            parse_json_ptr::<crate::private::CKRecordZonePayload>(out_json, "saved record zone")?
+        };
+        Ok(CKRecordZone::from_payload(payload))
+    }
+
+    pub fn delete_record_zone(&self, zone_id: &CKRecordZoneID) -> Result<CKRecordZoneID, CloudKitError> {
+        let identifier = optional_cstring_from_str(
+            self.container.container_identifier(),
+            "container identifier",
+        )?;
+        let zone_json = json_cstring(&zone_id.to_payload(), "zone ID")?;
+        let mut out_json: *mut c_char = ptr::null_mut();
+        let mut out_error: *mut c_char = ptr::null_mut();
+        let status = unsafe {
+            ffi::ck_database_delete_record_zone_sync(
+                opt_cstring_ptr(&identifier),
+                self.database_scope as i32,
+                zone_json.as_ptr(),
+                &mut out_json,
+                &mut out_error,
+            )
+        };
+        if status != ffi::status::OK {
+            return Err(unsafe { error_from_status(status, out_error) });
+        }
+        let payload = unsafe {
+            parse_json_ptr::<crate::private::CKRecordZoneIDPayload>(out_json, "deleted record zone")?
+        };
+        Ok(CKRecordZoneID::from_payload(payload))
+    }
+
+    pub fn fetch_subscription(
+        &self,
+        subscription_id: &str,
+    ) -> Result<CKAnySubscription, CloudKitError> {
+        let identifier = optional_cstring_from_str(
+            self.container.container_identifier(),
+            "container identifier",
+        )?;
+        let subscription_id = crate::private::cstring_from_str(subscription_id, "subscription ID")?;
+        let mut out_json: *mut c_char = ptr::null_mut();
+        let mut out_error: *mut c_char = ptr::null_mut();
+        let status = unsafe {
+            ffi::ck_database_fetch_subscription_sync(
+                opt_cstring_ptr(&identifier),
+                self.database_scope as i32,
+                subscription_id.as_ptr(),
+                &mut out_json,
+                &mut out_error,
+            )
+        };
+        if status != ffi::status::OK {
+            return Err(unsafe { error_from_status(status, out_error) });
+        }
+        let payload = unsafe {
+            parse_json_ptr::<crate::private::CKSubscriptionPayload>(out_json, "subscription")?
+        };
+        Ok(CKAnySubscription::from_payload(payload))
+    }
+
+    pub fn fetch_all_subscriptions(&self) -> Result<Vec<CKAnySubscription>, CloudKitError> {
+        let identifier = optional_cstring_from_str(
+            self.container.container_identifier(),
+            "container identifier",
+        )?;
+        let mut out_json: *mut c_char = ptr::null_mut();
+        let mut out_error: *mut c_char = ptr::null_mut();
+        let status = unsafe {
+            ffi::ck_database_fetch_all_subscriptions_sync(
+                opt_cstring_ptr(&identifier),
+                self.database_scope as i32,
+                &mut out_json,
+                &mut out_error,
+            )
+        };
+        if status != ffi::status::OK {
+            return Err(unsafe { error_from_status(status, out_error) });
+        }
+        let payloads = unsafe {
+            parse_json_ptr::<Vec<crate::private::CKSubscriptionPayload>>(out_json, "subscriptions")?
+        };
+        Ok(payloads.into_iter().map(CKAnySubscription::from_payload).collect())
+    }
+
+    pub fn save_subscription<S>(&self, subscription: S) -> Result<CKAnySubscription, CloudKitError>
+    where
+        S: Into<CKAnySubscription>,
+    {
+        let subscription = subscription.into();
+        let identifier = optional_cstring_from_str(
+            self.container.container_identifier(),
+            "container identifier",
+        )?;
+        let subscription_json = json_cstring(&subscription.to_payload(), "subscription")?;
+        let mut out_json: *mut c_char = ptr::null_mut();
+        let mut out_error: *mut c_char = ptr::null_mut();
+        let status = unsafe {
+            ffi::ck_database_save_subscription_sync(
+                opt_cstring_ptr(&identifier),
+                self.database_scope as i32,
+                subscription_json.as_ptr(),
+                &mut out_json,
+                &mut out_error,
+            )
+        };
+        if status != ffi::status::OK {
+            return Err(unsafe { error_from_status(status, out_error) });
+        }
+        let payload = unsafe {
+            parse_json_ptr::<crate::private::CKSubscriptionPayload>(out_json, "saved subscription")?
+        };
+        Ok(CKAnySubscription::from_payload(payload))
+    }
+
+    pub fn delete_subscription(&self, subscription_id: &str) -> Result<String, CloudKitError> {
+        let identifier = optional_cstring_from_str(
+            self.container.container_identifier(),
+            "container identifier",
+        )?;
+        let subscription_id = crate::private::cstring_from_str(subscription_id, "subscription ID")?;
+        let mut out_json: *mut c_char = ptr::null_mut();
+        let mut out_error: *mut c_char = ptr::null_mut();
+        let status = unsafe {
+            ffi::ck_database_delete_subscription_sync(
+                opt_cstring_ptr(&identifier),
+                self.database_scope as i32,
+                subscription_id.as_ptr(),
+                &mut out_json,
+                &mut out_error,
+            )
+        };
+        if status != ffi::status::OK {
+            return Err(unsafe { error_from_status(status, out_error) });
+        }
+        unsafe { parse_json_ptr::<String>(out_json, "deleted subscription ID") }
     }
 }
 

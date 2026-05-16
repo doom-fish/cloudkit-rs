@@ -33,6 +33,19 @@ extern "C" {
         refcon: *mut c_void,
     );
 
+    pub fn ck_container_discover_user_identity_sync(
+        container_identifier: *const c_char,
+        lookup_info_json: *const c_char,
+        out_json: *mut *mut c_char,
+        out_error_json: *mut *mut c_char,
+    ) -> i32;
+    pub fn ck_container_fetch_share_participant_sync(
+        container_identifier: *const c_char,
+        lookup_info_json: *const c_char,
+        out_json: *mut *mut c_char,
+        out_error_json: *mut *mut c_char,
+    ) -> i32;
+
     pub fn ck_database_save_record_sync(
         container_identifier: *const c_char,
         database_scope: i32,
@@ -70,6 +83,72 @@ extern "C" {
         callback: JsonCallback,
         refcon: *mut c_void,
     );
+    pub fn ck_database_fetch_query_results_sync(
+        container_identifier: *const c_char,
+        database_scope: i32,
+        query_json: *const c_char,
+        zone_id_json: *const c_char,
+        desired_keys_json: *const c_char,
+        results_limit: i32,
+        out_json: *mut *mut c_char,
+        out_error_json: *mut *mut c_char,
+    ) -> i32;
+
+    pub fn ck_database_fetch_all_record_zones_sync(
+        container_identifier: *const c_char,
+        database_scope: i32,
+        out_json: *mut *mut c_char,
+        out_error_json: *mut *mut c_char,
+    ) -> i32;
+    pub fn ck_database_fetch_record_zone_sync(
+        container_identifier: *const c_char,
+        database_scope: i32,
+        zone_id_json: *const c_char,
+        out_json: *mut *mut c_char,
+        out_error_json: *mut *mut c_char,
+    ) -> i32;
+    pub fn ck_database_save_record_zone_sync(
+        container_identifier: *const c_char,
+        database_scope: i32,
+        zone_json: *const c_char,
+        out_json: *mut *mut c_char,
+        out_error_json: *mut *mut c_char,
+    ) -> i32;
+    pub fn ck_database_delete_record_zone_sync(
+        container_identifier: *const c_char,
+        database_scope: i32,
+        zone_id_json: *const c_char,
+        out_json: *mut *mut c_char,
+        out_error_json: *mut *mut c_char,
+    ) -> i32;
+
+    pub fn ck_database_fetch_subscription_sync(
+        container_identifier: *const c_char,
+        database_scope: i32,
+        subscription_id: *const c_char,
+        out_json: *mut *mut c_char,
+        out_error_json: *mut *mut c_char,
+    ) -> i32;
+    pub fn ck_database_fetch_all_subscriptions_sync(
+        container_identifier: *const c_char,
+        database_scope: i32,
+        out_json: *mut *mut c_char,
+        out_error_json: *mut *mut c_char,
+    ) -> i32;
+    pub fn ck_database_save_subscription_sync(
+        container_identifier: *const c_char,
+        database_scope: i32,
+        subscription_json: *const c_char,
+        out_json: *mut *mut c_char,
+        out_error_json: *mut *mut c_char,
+    ) -> i32;
+    pub fn ck_database_delete_subscription_sync(
+        container_identifier: *const c_char,
+        database_scope: i32,
+        subscription_id: *const c_char,
+        out_json: *mut *mut c_char,
+        out_error_json: *mut *mut c_char,
+    ) -> i32;
 
     pub fn ck_database_execute_modify_records_sync(
         container_identifier: *const c_char,
@@ -82,6 +161,47 @@ extern "C" {
         container_identifier: *const c_char,
         database_scope: i32,
         operation_json: *const c_char,
+        out_json: *mut *mut c_char,
+        out_error_json: *mut *mut c_char,
+    ) -> i32;
+    pub fn ck_database_execute_fetch_records_sync(
+        container_identifier: *const c_char,
+        database_scope: i32,
+        operation_json: *const c_char,
+        out_json: *mut *mut c_char,
+        out_error_json: *mut *mut c_char,
+    ) -> i32;
+    pub fn ck_database_execute_fetch_database_changes_sync(
+        container_identifier: *const c_char,
+        database_scope: i32,
+        operation_json: *const c_char,
+        out_json: *mut *mut c_char,
+        out_error_json: *mut *mut c_char,
+    ) -> i32;
+    pub fn ck_database_execute_fetch_record_zone_changes_sync(
+        container_identifier: *const c_char,
+        database_scope: i32,
+        operation_json: *const c_char,
+        out_json: *mut *mut c_char,
+        out_error_json: *mut *mut c_char,
+    ) -> i32;
+
+    pub fn ck_share_create_root_record(
+        root_record_json: *const c_char,
+        out_json: *mut *mut c_char,
+        out_error_json: *mut *mut c_char,
+    ) -> i32;
+    pub fn ck_share_create_zone_wide(
+        zone_id_json: *const c_char,
+        out_json: *mut *mut c_char,
+        out_error_json: *mut *mut c_char,
+    ) -> i32;
+    pub fn ck_share_normalize(
+        share_json: *const c_char,
+        out_json: *mut *mut c_char,
+        out_error_json: *mut *mut c_char,
+    ) -> i32;
+    pub fn ck_share_create_one_time_url_participant(
         out_json: *mut *mut c_char,
         out_error_json: *mut *mut c_char,
     ) -> i32;

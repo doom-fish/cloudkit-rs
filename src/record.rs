@@ -1,16 +1,81 @@
 use std::collections::BTreeMap;
 use std::ffi::c_char;
+use std::ops::{BitOr, BitOrAssign};
 use std::path::{Path, PathBuf};
 
 use crate::error::CloudKitError;
 use crate::ffi;
 use crate::private::{
     cstring_from_str, error_from_status, parse_json_ptr, CKAssetPayload, CKRecordIDPayload,
-    CKRecordPayload, CKRecordValuePayload, CKRecordZoneIDPayload, RecordValueKind,
+    CKRecordPayload, CKRecordValuePayload, CKRecordZoneIDPayload, CKRecordZonePayload,
+    CKReferencePayload, RecordValueKind,
 };
+use crate::reference_utility::{CKReference, CKReferenceAction};
 
 const DEFAULT_ZONE_NAME: &str = "_defaultZone";
 const DEFAULT_OWNER_NAME: &str = "__defaultOwner__";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub struct CKRecordZoneCapabilities(u64);
+
+impl CKRecordZoneCapabilities {
+    pub const FETCH_CHANGES: Self = Self(1 << 0);
+    pub const ATOMIC: Self = Self(1 << 1);
+    pub const SHARING: Self = Self(1 << 2);
+    pub const ZONE_WIDE_SHARING: Self = Self(1 << 3);
+
+    pub const fn new(bits: u64) -> Self {
+        Self(bits)
+    }
+
+    pub const fn bits(self) -> u64 {
+        self.0
+    }
+
+    pub const fn contains(self, other: Self) -> bool {
+        (self.0 & other.0) == other.0
+    }
+}
+
+impl BitOr for CKRecordZoneCapabilities {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Self(self.0 | rhs.0)
+    }
+}
+
+impl BitOrAssign for CKRecordZoneCapabilities {
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.0 |= rhs.0;
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum CKRecordZoneEncryptionScope {
+    PerRecord,
+    PerZone,
+    Unknown(i32),
+}
+
+impl CKRecordZoneEncryptionScope {
+    pub(crate) const fn from_raw(raw: i32) -> Self {
+        match raw {
+            0 => Self::PerRecord,
+            1 => Self::PerZone,
+            other => Self::Unknown(other),
+        }
+    }
+
+    pub(crate) const fn to_raw(self) -> i32 {
+        match self {
+            Self::PerRecord => 0,
+            Self::PerZone => 1,
+            Self::Unknown(raw) => raw,
+        }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CKRecordZoneID {
@@ -128,6 +193,7 @@ pub enum RecordValue {
     Bytes(Vec<u8>),
     Date(String),
     Asset(CKAsset),
+    Reference(CKReference),
     Array(Vec<RecordValue>),
 }
 
@@ -179,6 +245,12 @@ impl From<CKAsset> for RecordValue {
     }
 }
 
+impl From<CKReference> for RecordValue {
+    fn from(value: CKReference) -> Self {
+        Self::Reference(value)
+    }
+}
+
 impl From<Vec<RecordValue>> for RecordValue {
     fn from(value: Vec<RecordValue>) -> Self {
         Self::Array(value)
@@ -197,6 +269,12 @@ impl RecordValue {
             RecordValueKind::Asset => Self::Asset(CKAsset::from_payload(
                 payload.asset_value.unwrap_or(CKAssetPayload {
                     file_url: String::new(),
+                }),
+            )),
+            RecordValueKind::Reference => Self::Reference(CKReference::from_payload(
+                payload.reference_value.unwrap_or_else(|| CKReferencePayload {
+                    record_id: CKRecordID::new(String::new()).to_payload(),
+                    action: CKReferenceAction::None.to_raw(),
                 }),
             )),
             RecordValueKind::Array => Self::Array(
@@ -221,6 +299,7 @@ impl RecordValue {
                 bytes_value: None,
                 date_value: None,
                 asset_value: None,
+                reference_value: None,
                 array_value: None,
             },
             Self::Int(value) => CKRecordValuePayload {
@@ -232,6 +311,7 @@ impl RecordValue {
                 bytes_value: None,
                 date_value: None,
                 asset_value: None,
+                reference_value: None,
                 array_value: None,
             },
             Self::Double(value) => CKRecordValuePayload {
@@ -243,6 +323,7 @@ impl RecordValue {
                 bytes_value: None,
                 date_value: None,
                 asset_value: None,
+                reference_value: None,
                 array_value: None,
             },
             Self::Bool(value) => CKRecordValuePayload {
@@ -254,6 +335,7 @@ impl RecordValue {
                 bytes_value: None,
                 date_value: None,
                 asset_value: None,
+                reference_value: None,
                 array_value: None,
             },
             Self::Bytes(value) => CKRecordValuePayload {
@@ -265,6 +347,7 @@ impl RecordValue {
                 bytes_value: Some(value.clone()),
                 date_value: None,
                 asset_value: None,
+                reference_value: None,
                 array_value: None,
             },
             Self::Date(value) => CKRecordValuePayload {
@@ -276,6 +359,7 @@ impl RecordValue {
                 bytes_value: None,
                 date_value: Some(value.clone()),
                 asset_value: None,
+                reference_value: None,
                 array_value: None,
             },
             Self::Asset(asset) => CKRecordValuePayload {
@@ -287,6 +371,19 @@ impl RecordValue {
                 bytes_value: None,
                 date_value: None,
                 asset_value: Some(asset.to_payload()),
+                reference_value: None,
+                array_value: None,
+            },
+            Self::Reference(reference) => CKRecordValuePayload {
+                kind: RecordValueKind::Reference,
+                string_value: None,
+                int_value: None,
+                double_value: None,
+                bool_value: None,
+                bytes_value: None,
+                date_value: None,
+                asset_value: None,
+                reference_value: Some(reference.to_payload()),
                 array_value: None,
             },
             Self::Array(values) => CKRecordValuePayload {
@@ -298,6 +395,7 @@ impl RecordValue {
                 bytes_value: None,
                 date_value: None,
                 asset_value: None,
+                reference_value: None,
                 array_value: Some(values.iter().map(Self::to_payload).collect()),
             },
         }
@@ -307,30 +405,68 @@ impl RecordValue {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CKRecordZone {
     zone_id: CKRecordZoneID,
-    capabilities: u64,
+    capabilities: CKRecordZoneCapabilities,
+    share: Option<CKReference>,
+    encryption_scope: Option<CKRecordZoneEncryptionScope>,
 }
 
 impl CKRecordZone {
     pub fn new(zone_name: impl Into<String>) -> Self {
         Self {
             zone_id: CKRecordZoneID::new(zone_name, DEFAULT_OWNER_NAME),
-            capabilities: 0,
+            capabilities: CKRecordZoneCapabilities::default(),
+            share: None,
+            encryption_scope: Some(CKRecordZoneEncryptionScope::PerRecord),
+        }
+    }
+
+    pub fn with_zone_id(zone_id: CKRecordZoneID) -> Self {
+        Self {
+            zone_id,
+            capabilities: CKRecordZoneCapabilities::default(),
+            share: None,
+            encryption_scope: Some(CKRecordZoneEncryptionScope::PerRecord),
         }
     }
 
     pub fn default_zone() -> Self {
-        Self {
-            zone_id: CKRecordZoneID::default_zone(),
-            capabilities: 0,
-        }
+        Self::with_zone_id(CKRecordZoneID::default_zone())
     }
 
     pub fn zone_id(&self) -> &CKRecordZoneID {
         &self.zone_id
     }
 
-    pub const fn capabilities(&self) -> u64 {
+    pub const fn capabilities(&self) -> CKRecordZoneCapabilities {
         self.capabilities
+    }
+
+    pub const fn share(&self) -> Option<&CKReference> {
+        self.share.as_ref()
+    }
+
+    pub const fn encryption_scope(&self) -> Option<CKRecordZoneEncryptionScope> {
+        self.encryption_scope
+    }
+
+    pub(crate) fn from_payload(payload: CKRecordZonePayload) -> Self {
+        Self {
+            zone_id: CKRecordZoneID::from_payload(payload.zone_id),
+            capabilities: CKRecordZoneCapabilities::new(payload.capabilities),
+            share: payload.share.map(CKReference::from_payload),
+            encryption_scope: payload
+                .encryption_scope
+                .map(CKRecordZoneEncryptionScope::from_raw),
+        }
+    }
+
+    pub(crate) fn to_payload(&self) -> CKRecordZonePayload {
+        CKRecordZonePayload {
+            zone_id: self.zone_id.to_payload(),
+            capabilities: self.capabilities.bits(),
+            share: self.share.as_ref().map(CKReference::to_payload),
+            encryption_scope: self.encryption_scope.map(CKRecordZoneEncryptionScope::to_raw),
+        }
     }
 }
 
@@ -340,6 +476,15 @@ pub struct CKRecord {
     record_id: CKRecordID,
     fields: BTreeMap<String, RecordValue>,
     encoded_system_fields: Vec<u8>,
+    record_change_tag: Option<String>,
+    creator_user_record_id: Option<CKRecordID>,
+    creation_date: Option<String>,
+    last_modified_user_record_id: Option<CKRecordID>,
+    modification_date: Option<String>,
+    parent: Option<CKReference>,
+    share: Option<CKReference>,
+    changed_keys: Vec<String>,
+    all_tokens: Vec<String>,
 }
 
 impl CKRecord {
@@ -356,12 +501,70 @@ impl CKRecord {
         Ok(Self::from_payload(payload))
     }
 
+    pub fn with_record_id(record_type: impl Into<String>, record_id: CKRecordID) -> Self {
+        Self {
+            record_type: record_type.into(),
+            record_id,
+            fields: BTreeMap::new(),
+            encoded_system_fields: Vec::new(),
+            record_change_tag: None,
+            creator_user_record_id: None,
+            creation_date: None,
+            last_modified_user_record_id: None,
+            modification_date: None,
+            parent: None,
+            share: None,
+            changed_keys: Vec::new(),
+            all_tokens: Vec::new(),
+        }
+    }
+
+    pub fn with_zone(record_type: impl Into<String>, zone_id: CKRecordZoneID) -> Self {
+        Self::with_record_id(record_type, CKRecordID::with_zone(String::new(), zone_id))
+    }
+
     pub fn record_type(&self) -> &str {
         &self.record_type
     }
 
     pub fn record_id(&self) -> &CKRecordID {
         &self.record_id
+    }
+
+    pub fn record_change_tag(&self) -> Option<&str> {
+        self.record_change_tag.as_deref()
+    }
+
+    pub const fn creator_user_record_id(&self) -> Option<&CKRecordID> {
+        self.creator_user_record_id.as_ref()
+    }
+
+    pub fn creation_date(&self) -> Option<&str> {
+        self.creation_date.as_deref()
+    }
+
+    pub const fn last_modified_user_record_id(&self) -> Option<&CKRecordID> {
+        self.last_modified_user_record_id.as_ref()
+    }
+
+    pub fn modification_date(&self) -> Option<&str> {
+        self.modification_date.as_deref()
+    }
+
+    pub const fn parent(&self) -> Option<&CKReference> {
+        self.parent.as_ref()
+    }
+
+    pub const fn share(&self) -> Option<&CKReference> {
+        self.share.as_ref()
+    }
+
+    pub fn changed_keys(&self) -> &[String] {
+        &self.changed_keys
+    }
+
+    pub fn all_tokens(&self) -> &[String] {
+        &self.all_tokens
     }
 
     pub fn object(&self, key: &str) -> Option<&RecordValue> {
@@ -373,10 +576,15 @@ impl CKRecord {
         V: Into<RecordValue>,
     {
         self.fields.insert(key.into(), value.into());
+        self.mark_changed_key(key);
     }
 
     pub fn remove_object(&mut self, key: &str) -> Option<RecordValue> {
-        self.fields.remove(key)
+        let removed = self.fields.remove(key);
+        if removed.is_some() {
+            self.mark_changed_key(key);
+        }
+        removed
     }
 
     pub fn all_keys(&self) -> Vec<String> {
@@ -385,6 +593,31 @@ impl CKRecord {
 
     pub fn encoded_system_fields(&self) -> &[u8] {
         &self.encoded_system_fields
+    }
+
+    pub fn set_parent_reference(&mut self, reference: CKReference) {
+        self.parent = Some(reference);
+    }
+
+    pub fn set_parent_reference_from_record(&mut self, parent_record: &CKRecord) {
+        self.set_parent_reference(CKReference::new(
+            parent_record.record_id().clone(),
+            CKReferenceAction::None,
+        ));
+    }
+
+    pub fn set_parent_reference_from_record_id(&mut self, parent_record_id: CKRecordID) {
+        self.set_parent_reference(CKReference::new(parent_record_id, CKReferenceAction::None));
+    }
+
+    pub fn clear_parent_reference(&mut self) {
+        self.parent = None;
+    }
+
+    fn mark_changed_key(&mut self, key: &str) {
+        if !self.changed_keys.iter().any(|changed| changed == key) {
+            self.changed_keys.push(key.into());
+        }
     }
 
     pub(crate) fn from_payload(payload: CKRecordPayload) -> Self {
@@ -397,6 +630,17 @@ impl CKRecord {
                 .map(|(key, value)| (key, RecordValue::from_payload(value)))
                 .collect(),
             encoded_system_fields: payload.encoded_system_fields,
+            record_change_tag: payload.record_change_tag,
+            creator_user_record_id: payload.creator_user_record_id.map(CKRecordID::from_payload),
+            creation_date: payload.creation_date,
+            last_modified_user_record_id: payload
+                .last_modified_user_record_id
+                .map(CKRecordID::from_payload),
+            modification_date: payload.modification_date,
+            parent: payload.parent.map(CKReference::from_payload),
+            share: payload.share.map(CKReference::from_payload),
+            changed_keys: payload.changed_keys,
+            all_tokens: payload.all_tokens,
         }
     }
 
@@ -410,6 +654,21 @@ impl CKRecord {
                 .map(|(key, value)| (key.clone(), value.to_payload()))
                 .collect(),
             encoded_system_fields: self.encoded_system_fields.clone(),
+            record_change_tag: self.record_change_tag.clone(),
+            creator_user_record_id: self
+                .creator_user_record_id
+                .as_ref()
+                .map(CKRecordID::to_payload),
+            creation_date: self.creation_date.clone(),
+            last_modified_user_record_id: self
+                .last_modified_user_record_id
+                .as_ref()
+                .map(CKRecordID::to_payload),
+            modification_date: self.modification_date.clone(),
+            parent: self.parent.as_ref().map(CKReference::to_payload),
+            share: self.share.as_ref().map(CKReference::to_payload),
+            changed_keys: self.changed_keys.clone(),
+            all_tokens: self.all_tokens.clone(),
         }
     }
 }

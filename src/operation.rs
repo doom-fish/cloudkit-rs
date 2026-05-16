@@ -3,14 +3,21 @@ use core::ptr;
 
 use crate::database::CKDatabase;
 use crate::error::CloudKitError;
+use crate::fetched_results::{
+    CKFetchDatabaseChangesResult, CKFetchRecordZoneChangesResult, CKFetchRecordsResult,
+};
 use crate::ffi;
 use crate::private::{
     error_from_status, json_cstring, opt_cstring_ptr, optional_cstring_from_str, parse_json_ptr,
-    CKModifyRecordsOperationPayload, CKModifyRecordsResultPayload, CKQueryOperationPayload,
-    CKQueryOperationResultPayload,
+    CKFetchDatabaseChangesOperationPayload, CKFetchRecordZoneChangesConfigurationEntryPayload,
+    CKFetchRecordZoneChangesConfigurationPayload, CKFetchRecordZoneChangesOperationPayload,
+    CKFetchRecordZoneChangesResultPayload, CKFetchRecordsOperationPayload,
+    CKFetchRecordsResultPayload, CKModifyRecordsOperationPayload, CKModifyRecordsResultPayload,
+    CKQueryOperationPayload, CKQueryOperationResultPayload,
 };
 use crate::query::CKQuery;
 use crate::record::{CKRecord, CKRecordID, CKRecordZoneID};
+use crate::server_change_token::CKServerChangeToken;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CKRecordSavePolicy {
@@ -270,5 +277,307 @@ impl CKQueryOperation {
                 .operation_error
                 .map(crate::error::CloudKitError::from_payload),
         })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CKFetchRecordsOperation {
+    record_ids: Vec<CKRecordID>,
+    desired_keys: Option<Vec<String>>,
+}
+
+impl CKFetchRecordsOperation {
+    pub fn new(record_ids: Vec<CKRecordID>) -> Self {
+        Self {
+            record_ids,
+            desired_keys: None,
+        }
+    }
+
+    pub fn record_ids(&self) -> &[CKRecordID] {
+        &self.record_ids
+    }
+
+    pub fn desired_keys(&self) -> Option<&[String]> {
+        self.desired_keys.as_deref()
+    }
+
+    pub fn with_desired_keys(mut self, desired_keys: Vec<String>) -> Self {
+        self.desired_keys = Some(desired_keys);
+        self
+    }
+
+    pub fn execute_in(&self, database: &CKDatabase) -> Result<CKFetchRecordsResult, CloudKitError> {
+        let identifier = optional_cstring_from_str(
+            database.container().container_identifier(),
+            "container identifier",
+        )?;
+        let payload = CKFetchRecordsOperationPayload {
+            record_ids: self.record_ids.iter().map(CKRecordID::to_payload).collect(),
+            desired_keys: self.desired_keys.clone(),
+        };
+        let operation_json = json_cstring(&payload, "fetch-records operation")?;
+        let mut out_json: *mut c_char = ptr::null_mut();
+        let mut out_error: *mut c_char = ptr::null_mut();
+        let status = unsafe {
+            ffi::ck_database_execute_fetch_records_sync(
+                opt_cstring_ptr(&identifier),
+                database.database_scope() as i32,
+                operation_json.as_ptr(),
+                &mut out_json,
+                &mut out_error,
+            )
+        };
+        if status != ffi::status::OK {
+            return Err(unsafe { error_from_status(status, out_error) });
+        }
+        let payload = unsafe {
+            parse_json_ptr::<CKFetchRecordsResultPayload>(out_json, "fetch-records result")?
+        };
+        Ok(CKFetchRecordsResult {
+            records: payload.records.into_iter().map(CKRecord::from_payload).collect(),
+            results: payload
+                .results
+                .into_iter()
+                .map(crate::fetched_results::CKRecordResult::from_payload)
+                .collect(),
+            operation_error: payload.operation_error.map(CloudKitError::from_payload),
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CKFetchDatabaseChangesOperation {
+    previous_server_change_token: Option<CKServerChangeToken>,
+    results_limit: Option<usize>,
+    fetch_all_changes: bool,
+}
+
+impl CKFetchDatabaseChangesOperation {
+    pub fn new() -> Self {
+        Self {
+            previous_server_change_token: None,
+            results_limit: None,
+            fetch_all_changes: true,
+        }
+    }
+
+    pub const fn previous_server_change_token(&self) -> Option<&CKServerChangeToken> {
+        self.previous_server_change_token.as_ref()
+    }
+
+    pub const fn results_limit(&self) -> Option<usize> {
+        self.results_limit
+    }
+
+    pub const fn fetch_all_changes(&self) -> bool {
+        self.fetch_all_changes
+    }
+
+    pub fn with_previous_server_change_token(mut self, token: CKServerChangeToken) -> Self {
+        self.previous_server_change_token = Some(token);
+        self
+    }
+
+    pub fn with_results_limit(mut self, results_limit: usize) -> Self {
+        self.results_limit = Some(results_limit);
+        self
+    }
+
+    pub fn with_fetch_all_changes(mut self, fetch_all_changes: bool) -> Self {
+        self.fetch_all_changes = fetch_all_changes;
+        self
+    }
+
+    pub fn execute_in(&self, database: &CKDatabase) -> Result<CKFetchDatabaseChangesResult, CloudKitError> {
+        let identifier = optional_cstring_from_str(
+            database.container().container_identifier(),
+            "container identifier",
+        )?;
+        let payload = CKFetchDatabaseChangesOperationPayload {
+            previous_server_change_token: self
+                .previous_server_change_token
+                .as_ref()
+                .map(CKServerChangeToken::to_payload),
+            results_limit: self.results_limit,
+            fetch_all_changes: self.fetch_all_changes,
+        };
+        let operation_json = json_cstring(&payload, "fetch-database-changes operation")?;
+        let mut out_json: *mut c_char = ptr::null_mut();
+        let mut out_error: *mut c_char = ptr::null_mut();
+        let status = unsafe {
+            ffi::ck_database_execute_fetch_database_changes_sync(
+                opt_cstring_ptr(&identifier),
+                database.database_scope() as i32,
+                operation_json.as_ptr(),
+                &mut out_json,
+                &mut out_error,
+            )
+        };
+        if status != ffi::status::OK {
+            return Err(unsafe { error_from_status(status, out_error) });
+        }
+        let payload = unsafe {
+            parse_json_ptr::<crate::private::CKFetchDatabaseChangesResultPayload>(
+                out_json,
+                "fetch-database-changes result",
+            )?
+        };
+        Ok(CKFetchDatabaseChangesResult::from_payload(payload))
+    }
+}
+
+impl Default for CKFetchDatabaseChangesOperation {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CKFetchRecordZoneChangesConfiguration {
+    previous_server_change_token: Option<CKServerChangeToken>,
+    results_limit: Option<usize>,
+    desired_keys: Option<Vec<String>>,
+}
+
+impl CKFetchRecordZoneChangesConfiguration {
+    pub fn new() -> Self {
+        Self {
+            previous_server_change_token: None,
+            results_limit: None,
+            desired_keys: None,
+        }
+    }
+
+    pub const fn previous_server_change_token(&self) -> Option<&CKServerChangeToken> {
+        self.previous_server_change_token.as_ref()
+    }
+
+    pub const fn results_limit(&self) -> Option<usize> {
+        self.results_limit
+    }
+
+    pub fn desired_keys(&self) -> Option<&[String]> {
+        self.desired_keys.as_deref()
+    }
+
+    pub fn with_previous_server_change_token(mut self, token: CKServerChangeToken) -> Self {
+        self.previous_server_change_token = Some(token);
+        self
+    }
+
+    pub fn with_results_limit(mut self, results_limit: usize) -> Self {
+        self.results_limit = Some(results_limit);
+        self
+    }
+
+    pub fn with_desired_keys(mut self, desired_keys: Vec<String>) -> Self {
+        self.desired_keys = Some(desired_keys);
+        self
+    }
+
+    pub(crate) fn to_payload(&self) -> CKFetchRecordZoneChangesConfigurationPayload {
+        CKFetchRecordZoneChangesConfigurationPayload {
+            previous_server_change_token: self
+                .previous_server_change_token
+                .as_ref()
+                .map(CKServerChangeToken::to_payload),
+            results_limit: self.results_limit,
+            desired_keys: self.desired_keys.clone(),
+        }
+    }
+}
+
+impl Default for CKFetchRecordZoneChangesConfiguration {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CKFetchRecordZoneChangesOperation {
+    zones: Vec<(CKRecordZoneID, CKFetchRecordZoneChangesConfiguration)>,
+    fetch_all_changes: bool,
+}
+
+impl CKFetchRecordZoneChangesOperation {
+    pub fn new(record_zone_ids: Vec<CKRecordZoneID>) -> Self {
+        Self {
+            zones: record_zone_ids
+                .into_iter()
+                .map(|zone_id| (zone_id, CKFetchRecordZoneChangesConfiguration::default()))
+                .collect(),
+            fetch_all_changes: true,
+        }
+    }
+
+    pub fn zones(&self) -> &[(CKRecordZoneID, CKFetchRecordZoneChangesConfiguration)] {
+        &self.zones
+    }
+
+    pub const fn fetch_all_changes(&self) -> bool {
+        self.fetch_all_changes
+    }
+
+    pub fn with_zone_configuration(
+        mut self,
+        zone_id: CKRecordZoneID,
+        configuration: CKFetchRecordZoneChangesConfiguration,
+    ) -> Self {
+        if let Some(existing) = self.zones.iter_mut().find(|(existing_zone_id, _)| *existing_zone_id == zone_id)
+        {
+            existing.1 = configuration;
+        } else {
+            self.zones.push((zone_id, configuration));
+        }
+        self
+    }
+
+    pub fn with_fetch_all_changes(mut self, fetch_all_changes: bool) -> Self {
+        self.fetch_all_changes = fetch_all_changes;
+        self
+    }
+
+    pub fn execute_in(
+        &self,
+        database: &CKDatabase,
+    ) -> Result<CKFetchRecordZoneChangesResult, CloudKitError> {
+        let identifier = optional_cstring_from_str(
+            database.container().container_identifier(),
+            "container identifier",
+        )?;
+        let payload = CKFetchRecordZoneChangesOperationPayload {
+            zones: self
+                .zones
+                .iter()
+                .map(|(zone_id, configuration)| CKFetchRecordZoneChangesConfigurationEntryPayload {
+                    zone_id: zone_id.to_payload(),
+                    configuration: configuration.to_payload(),
+                })
+                .collect(),
+            fetch_all_changes: self.fetch_all_changes,
+        };
+        let operation_json = json_cstring(&payload, "fetch-record-zone-changes operation")?;
+        let mut out_json: *mut c_char = ptr::null_mut();
+        let mut out_error: *mut c_char = ptr::null_mut();
+        let status = unsafe {
+            ffi::ck_database_execute_fetch_record_zone_changes_sync(
+                opt_cstring_ptr(&identifier),
+                database.database_scope() as i32,
+                operation_json.as_ptr(),
+                &mut out_json,
+                &mut out_error,
+            )
+        };
+        if status != ffi::status::OK {
+            return Err(unsafe { error_from_status(status, out_error) });
+        }
+        let payload = unsafe {
+            parse_json_ptr::<CKFetchRecordZoneChangesResultPayload>(
+                out_json,
+                "fetch-record-zone-changes result",
+            )?
+        };
+        Ok(CKFetchRecordZoneChangesResult::from_payload(payload))
     }
 }

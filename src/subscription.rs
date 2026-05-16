@@ -1,5 +1,7 @@
 use core::ops::{BitOr, BitOrAssign};
 
+use crate::notification_info::CKNotificationInfo;
+use crate::private::{CKNotificationInfoPayload, CKSubscriptionPayload, CKSubscriptionPayloadKind};
 use crate::record::CKRecordZoneID;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -8,44 +10,17 @@ pub enum CKSubscriptionType {
     Query,
     RecordZone,
     Database,
+    Unknown(i32),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct CKNotificationInfo {
-    alert_body: Option<String>,
-    should_send_content_available: bool,
-}
-
-impl Default for CKNotificationInfo {
-    fn default() -> Self {
-        Self {
-            alert_body: None,
-            should_send_content_available: true,
+impl CKSubscriptionType {
+    pub(crate) const fn to_raw(self) -> i32 {
+        match self {
+            Self::Query => 1,
+            Self::RecordZone => 2,
+            Self::Database => 3,
+            Self::Unknown(raw) => raw,
         }
-    }
-}
-
-impl CKNotificationInfo {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn alert_body(&self) -> Option<&str> {
-        self.alert_body.as_deref()
-    }
-
-    pub const fn should_send_content_available(&self) -> bool {
-        self.should_send_content_available
-    }
-
-    pub fn with_alert_body(mut self, alert_body: impl Into<String>) -> Self {
-        self.alert_body = Some(alert_body.into());
-        self
-    }
-
-    pub fn with_content_available(mut self, should_send_content_available: bool) -> Self {
-        self.should_send_content_available = should_send_content_available;
-        self
     }
 }
 
@@ -101,7 +76,7 @@ impl CKSubscription {
         self.subscription_type
     }
 
-    pub const fn notification_info(&self) -> &CKNotificationInfo {
+    pub fn notification_info(&self) -> &CKNotificationInfo {
         &self.notification_info
     }
 
@@ -109,6 +84,7 @@ impl CKSubscription {
         self.notification_info = notification_info;
         self
     }
+
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -165,6 +141,35 @@ impl CKQuerySubscription {
         self.base = self.base.clone().with_notification_info(notification_info);
         self
     }
+
+    pub(crate) fn from_payload(payload: CKSubscriptionPayload) -> Self {
+        let mut subscription = Self::new(
+            payload.record_type.unwrap_or_default(),
+            payload.predicate_format.unwrap_or_else(|| "TRUEPREDICATE".into()),
+            payload.subscription_id,
+            QuerySubscriptionOptions(payload.query_subscription_options.unwrap_or_default()),
+        );
+        if let Some(zone_id) = payload.zone_id {
+            subscription.zone_id = Some(CKRecordZoneID::from_payload(zone_id));
+        }
+        if let Some(notification_info) = payload.notification_info {
+            subscription.base.notification_info = CKNotificationInfo::from_payload(notification_info);
+        }
+        subscription
+    }
+
+    pub(crate) fn to_payload(&self) -> CKSubscriptionPayload {
+        CKSubscriptionPayload {
+            kind: CKSubscriptionPayloadKind::Query,
+            subscription_id: self.base.subscription_id.clone(),
+            subscription_type: self.base.subscription_type.to_raw(),
+            notification_info: Some(self.base.notification_info.to_payload()),
+            record_type: Some(self.record_type.clone()),
+            predicate_format: Some(self.predicate_format.clone()),
+            zone_id: self.zone_id.as_ref().map(CKRecordZoneID::to_payload),
+            query_subscription_options: Some(self.options.bits()),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -203,5 +208,165 @@ impl CKRecordZoneSubscription {
     pub fn with_notification_info(mut self, notification_info: CKNotificationInfo) -> Self {
         self.base = self.base.clone().with_notification_info(notification_info);
         self
+    }
+
+    pub(crate) fn from_payload(payload: CKSubscriptionPayload) -> Self {
+        let mut subscription = Self::new(
+            payload
+                .zone_id
+                .map_or_else(CKRecordZoneID::default_zone, CKRecordZoneID::from_payload),
+            payload.subscription_id,
+        );
+        subscription.record_type = payload.record_type;
+        if let Some(notification_info) = payload.notification_info {
+            subscription.base.notification_info = CKNotificationInfo::from_payload(notification_info);
+        }
+        subscription
+    }
+
+    pub(crate) fn to_payload(&self) -> CKSubscriptionPayload {
+        CKSubscriptionPayload {
+            kind: CKSubscriptionPayloadKind::RecordZone,
+            subscription_id: self.base.subscription_id.clone(),
+            subscription_type: self.base.subscription_type.to_raw(),
+            notification_info: Some(self.base.notification_info.to_payload()),
+            record_type: self.record_type.clone(),
+            predicate_format: None,
+            zone_id: Some(self.zone_id.to_payload()),
+            query_subscription_options: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct CKDatabaseSubscription {
+    base: CKSubscription,
+    record_type: Option<String>,
+}
+
+impl CKDatabaseSubscription {
+    pub fn new(subscription_id: impl Into<String>) -> Self {
+        Self {
+            base: CKSubscription::new(subscription_id, CKSubscriptionType::Database),
+            record_type: None,
+        }
+    }
+
+    pub const fn base(&self) -> &CKSubscription {
+        &self.base
+    }
+
+    pub fn record_type(&self) -> Option<&str> {
+        self.record_type.as_deref()
+    }
+
+    pub fn with_record_type(mut self, record_type: impl Into<String>) -> Self {
+        self.record_type = Some(record_type.into());
+        self
+    }
+
+    pub fn with_notification_info(mut self, notification_info: CKNotificationInfo) -> Self {
+        self.base = self.base.clone().with_notification_info(notification_info);
+        self
+    }
+
+    pub(crate) fn from_payload(payload: CKSubscriptionPayload) -> Self {
+        let mut subscription = Self::new(payload.subscription_id);
+        subscription.record_type = payload.record_type;
+        if let Some(notification_info) = payload.notification_info {
+            subscription.base.notification_info = CKNotificationInfo::from_payload(notification_info);
+        }
+        subscription
+    }
+
+    pub(crate) fn to_payload(&self) -> CKSubscriptionPayload {
+        CKSubscriptionPayload {
+            kind: CKSubscriptionPayloadKind::Database,
+            subscription_id: self.base.subscription_id.clone(),
+            subscription_type: self.base.subscription_type.to_raw(),
+            notification_info: Some(self.base.notification_info.to_payload()),
+            record_type: self.record_type.clone(),
+            predicate_format: None,
+            zone_id: None,
+            query_subscription_options: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum CKAnySubscription {
+    Query(CKQuerySubscription),
+    RecordZone(CKRecordZoneSubscription),
+    Database(CKDatabaseSubscription),
+}
+
+impl CKAnySubscription {
+    pub fn subscription_id(&self) -> &str {
+        match self {
+            Self::Query(subscription) => subscription.base().subscription_id(),
+            Self::RecordZone(subscription) => subscription.base().subscription_id(),
+            Self::Database(subscription) => subscription.base().subscription_id(),
+        }
+    }
+
+    pub fn notification_info(&self) -> &CKNotificationInfo {
+        match self {
+            Self::Query(subscription) => subscription.base().notification_info(),
+            Self::RecordZone(subscription) => subscription.base().notification_info(),
+            Self::Database(subscription) => subscription.base().notification_info(),
+        }
+    }
+
+    pub const fn subscription_type(&self) -> CKSubscriptionType {
+        match self {
+            Self::Query(subscription) => subscription.base().subscription_type(),
+            Self::RecordZone(subscription) => subscription.base().subscription_type(),
+            Self::Database(subscription) => subscription.base().subscription_type(),
+        }
+    }
+
+    pub(crate) fn from_payload(payload: CKSubscriptionPayload) -> Self {
+        match payload.kind {
+            CKSubscriptionPayloadKind::Query => Self::Query(CKQuerySubscription::from_payload(payload)),
+            CKSubscriptionPayloadKind::RecordZone => {
+                Self::RecordZone(CKRecordZoneSubscription::from_payload(payload))
+            }
+            CKSubscriptionPayloadKind::Database => {
+                Self::Database(CKDatabaseSubscription::from_payload(payload))
+            }
+        }
+    }
+
+    pub(crate) fn to_payload(&self) -> CKSubscriptionPayload {
+        match self {
+            Self::Query(subscription) => subscription.to_payload(),
+            Self::RecordZone(subscription) => subscription.to_payload(),
+            Self::Database(subscription) => subscription.to_payload(),
+        }
+    }
+}
+
+impl From<CKQuerySubscription> for CKAnySubscription {
+    fn from(value: CKQuerySubscription) -> Self {
+        Self::Query(value)
+    }
+}
+
+impl From<CKRecordZoneSubscription> for CKAnySubscription {
+    fn from(value: CKRecordZoneSubscription) -> Self {
+        Self::RecordZone(value)
+    }
+}
+
+impl From<CKDatabaseSubscription> for CKAnySubscription {
+    fn from(value: CKDatabaseSubscription) -> Self {
+        Self::Database(value)
+    }
+}
+
+impl From<CKNotificationInfoPayload> for CKNotificationInfo {
+    fn from(value: CKNotificationInfoPayload) -> Self {
+        CKNotificationInfo::from_payload(value)
     }
 }

@@ -5,10 +5,12 @@ use crate::database::{CKDatabase, CKDatabaseScope};
 use crate::error::CloudKitError;
 use crate::ffi;
 use crate::private::{
-    box_closure, error_from_status, opt_cstring_ptr, optional_cstring_from_str,
+    box_closure, error_from_status, json_cstring, opt_cstring_ptr, optional_cstring_from_str,
     parse_borrowed_error_ptr, parse_json_ptr, parse_json_str,
 };
 use crate::record::CKRecordID;
+use crate::share::CKShareParticipant;
+use crate::user_identity::{CKUserIdentity, CKUserIdentityLookupInfo};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
@@ -90,6 +92,10 @@ impl CKContainer {
         CKDatabase::new(self.clone(), CKDatabaseScope::Shared)
     }
 
+    pub fn database_with_scope(&self, scope: CKDatabaseScope) -> CKDatabase {
+        CKDatabase::new(self.clone(), scope)
+    }
+
     pub fn account_status(&self) -> Result<AccountStatus, CloudKitError> {
         let identifier =
             optional_cstring_from_str(self.identifier.as_deref(), "container identifier")?;
@@ -167,6 +173,103 @@ impl CKContainer {
             );
         }
         Ok(())
+    }
+
+    pub fn discover_user_identity(
+        &self,
+        lookup_info: &CKUserIdentityLookupInfo,
+    ) -> Result<CKUserIdentity, CloudKitError> {
+        let identifier =
+            optional_cstring_from_str(self.identifier.as_deref(), "container identifier")?;
+        let lookup_json = json_cstring(&lookup_info.to_payload(), "user identity lookup info")?;
+        let mut out_json: *mut c_char = ptr::null_mut();
+        let mut out_error: *mut c_char = ptr::null_mut();
+        let status = unsafe {
+            ffi::ck_container_discover_user_identity_sync(
+                opt_cstring_ptr(&identifier),
+                lookup_json.as_ptr(),
+                &mut out_json,
+                &mut out_error,
+            )
+        };
+        if status != ffi::status::OK {
+            return Err(unsafe { error_from_status(status, out_error) });
+        }
+        let payload = unsafe {
+            parse_json_ptr::<crate::private::CKUserIdentityPayload>(out_json, "user identity")?
+        };
+        Ok(CKUserIdentity::from_payload(payload))
+    }
+
+    pub fn discover_user_identity_with_email_address(
+        &self,
+        email_address: impl Into<String>,
+    ) -> Result<CKUserIdentity, CloudKitError> {
+        self.discover_user_identity(&CKUserIdentityLookupInfo::with_email_address(email_address))
+    }
+
+    pub fn discover_user_identity_with_phone_number(
+        &self,
+        phone_number: impl Into<String>,
+    ) -> Result<CKUserIdentity, CloudKitError> {
+        self.discover_user_identity(&CKUserIdentityLookupInfo::with_phone_number(phone_number))
+    }
+
+    pub fn discover_user_identity_with_user_record_id(
+        &self,
+        user_record_id: CKRecordID,
+    ) -> Result<CKUserIdentity, CloudKitError> {
+        self.discover_user_identity(&CKUserIdentityLookupInfo::with_user_record_id(user_record_id))
+    }
+
+    pub fn fetch_share_participant(
+        &self,
+        lookup_info: &CKUserIdentityLookupInfo,
+    ) -> Result<CKShareParticipant, CloudKitError> {
+        let identifier =
+            optional_cstring_from_str(self.identifier.as_deref(), "container identifier")?;
+        let lookup_json = json_cstring(&lookup_info.to_payload(), "share participant lookup info")?;
+        let mut out_json: *mut c_char = ptr::null_mut();
+        let mut out_error: *mut c_char = ptr::null_mut();
+        let status = unsafe {
+            ffi::ck_container_fetch_share_participant_sync(
+                opt_cstring_ptr(&identifier),
+                lookup_json.as_ptr(),
+                &mut out_json,
+                &mut out_error,
+            )
+        };
+        if status != ffi::status::OK {
+            return Err(unsafe { error_from_status(status, out_error) });
+        }
+        let payload = unsafe {
+            parse_json_ptr::<crate::private::CKShareParticipantPayload>(
+                out_json,
+                "share participant",
+            )?
+        };
+        Ok(CKShareParticipant::from_payload(payload))
+    }
+
+    pub fn fetch_share_participant_with_email_address(
+        &self,
+        email_address: impl Into<String>,
+    ) -> Result<CKShareParticipant, CloudKitError> {
+        self.fetch_share_participant(&CKUserIdentityLookupInfo::with_email_address(email_address))
+    }
+
+    pub fn fetch_share_participant_with_phone_number(
+        &self,
+        phone_number: impl Into<String>,
+    ) -> Result<CKShareParticipant, CloudKitError> {
+        self.fetch_share_participant(&CKUserIdentityLookupInfo::with_phone_number(phone_number))
+    }
+
+    pub fn fetch_share_participant_with_user_record_id(
+        &self,
+        user_record_id: CKRecordID,
+    ) -> Result<CKShareParticipant, CloudKitError> {
+        self.fetch_share_participant(&CKUserIdentityLookupInfo::with_user_record_id(user_record_id))
     }
 }
 

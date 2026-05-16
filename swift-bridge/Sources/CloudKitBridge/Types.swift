@@ -1,7 +1,7 @@
 import CloudKit
 import Foundation
 
-private let ckISO8601Formatter: ISO8601DateFormatter = {
+let ckISO8601Formatter: ISO8601DateFormatter = {
     let formatter = ISO8601DateFormatter()
     formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
     return formatter
@@ -15,6 +15,7 @@ enum CKRecordValueKind: String, Codable {
     case bytes
     case date
     case asset
+    case reference
     case array
 }
 
@@ -26,6 +27,11 @@ struct CKRecordZoneIDPayload: Codable {
 struct CKRecordIDPayload: Codable {
     var recordName: String
     var zoneID: CKRecordZoneIDPayload
+}
+
+struct CKReferencePayload: Codable {
+    var recordID: CKRecordIDPayload
+    var action: UInt
 }
 
 struct CKAssetPayload: Codable {
@@ -41,6 +47,7 @@ struct CKRecordValuePayload: Codable {
     var bytesValue: [UInt8]?
     var dateValue: String?
     var assetValue: CKAssetPayload?
+    var referenceValue: CKReferencePayload?
     var arrayValue: [CKRecordValuePayload]?
 }
 
@@ -49,6 +56,22 @@ struct CKRecordPayload: Codable {
     var recordID: CKRecordIDPayload
     var fields: [String: CKRecordValuePayload]
     var encodedSystemFields: [UInt8]
+    var recordChangeTag: String?
+    var creatorUserRecordID: CKRecordIDPayload?
+    var creationDate: String?
+    var lastModifiedUserRecordID: CKRecordIDPayload?
+    var modificationDate: String?
+    var parent: CKReferencePayload?
+    var share: CKReferencePayload?
+    var changedKeys: [String]
+    var allTokens: [String]
+}
+
+struct CKRecordZonePayload: Codable {
+    var zoneID: CKRecordZoneIDPayload
+    var capabilities: UInt64
+    var share: CKReferencePayload?
+    var encryptionScope: Int?
 }
 
 struct SortDescriptorPayload: Codable {
@@ -124,6 +147,14 @@ func ckDecodeRecordID(_ payload: CKRecordIDPayload) -> CKRecord.ID {
     CKRecord.ID(recordName: payload.recordName, zoneID: ckDecodeZoneID(payload.zoneID))
 }
 
+func ckEncodeReference(_ reference: CKRecord.Reference) -> CKReferencePayload {
+    CKReferencePayload(recordID: ckEncodeRecordID(reference.recordID), action: reference.action.rawValue)
+}
+
+func ckDecodeReference(_ payload: CKReferencePayload) -> CKRecord.Reference {
+    CKRecord.Reference(recordID: ckDecodeRecordID(payload.recordID), action: CKRecord.ReferenceAction(rawValue: payload.action) ?? .none)
+}
+
 func ckArchiveSystemFields(_ record: CKRecord) throws -> [UInt8] {
     let archiver = NSKeyedArchiver(requiringSecureCoding: true)
     record.encodeSystemFields(with: archiver)
@@ -142,6 +173,7 @@ func ckEncodeRecordValue(_ value: Any) -> CKRecordValuePayload? {
             bytesValue: nil,
             dateValue: nil,
             assetValue: nil,
+            referenceValue: nil,
             arrayValue: nil
         )
     }
@@ -156,6 +188,7 @@ func ckEncodeRecordValue(_ value: Any) -> CKRecordValuePayload? {
                 bytesValue: nil,
                 dateValue: nil,
                 assetValue: nil,
+                referenceValue: nil,
                 arrayValue: nil
             )
         }
@@ -169,6 +202,7 @@ func ckEncodeRecordValue(_ value: Any) -> CKRecordValuePayload? {
                 bytesValue: nil,
                 dateValue: nil,
                 assetValue: nil,
+                referenceValue: nil,
                 arrayValue: nil
             )
         }
@@ -181,6 +215,7 @@ func ckEncodeRecordValue(_ value: Any) -> CKRecordValuePayload? {
             bytesValue: nil,
             dateValue: nil,
             assetValue: nil,
+            referenceValue: nil,
             arrayValue: nil
         )
     }
@@ -194,6 +229,7 @@ func ckEncodeRecordValue(_ value: Any) -> CKRecordValuePayload? {
             bytesValue: [UInt8](data),
             dateValue: nil,
             assetValue: nil,
+            referenceValue: nil,
             arrayValue: nil
         )
     }
@@ -207,6 +243,7 @@ func ckEncodeRecordValue(_ value: Any) -> CKRecordValuePayload? {
             bytesValue: nil,
             dateValue: ckISO8601Formatter.string(from: date),
             assetValue: nil,
+            referenceValue: nil,
             arrayValue: nil
         )
     }
@@ -219,7 +256,22 @@ func ckEncodeRecordValue(_ value: Any) -> CKRecordValuePayload? {
             boolValue: nil,
             bytesValue: nil,
             dateValue: nil,
-            assetValue: CKAssetPayload(fileURL: asset.fileURL?.path ?? ""),
+            assetValue: ckEncodeAsset(asset),
+            referenceValue: nil,
+            arrayValue: nil
+        )
+    }
+    if let reference = value as? CKRecord.Reference {
+        return CKRecordValuePayload(
+            kind: .reference,
+            stringValue: nil,
+            intValue: nil,
+            doubleValue: nil,
+            boolValue: nil,
+            bytesValue: nil,
+            dateValue: nil,
+            assetValue: nil,
+            referenceValue: ckEncodeReference(reference),
             arrayValue: nil
         )
     }
@@ -239,6 +291,7 @@ func ckEncodeRecordValue(_ value: Any) -> CKRecordValuePayload? {
             bytesValue: nil,
             dateValue: nil,
             assetValue: nil,
+            referenceValue: nil,
             arrayValue: payloads
         )
     }
@@ -264,12 +317,26 @@ func ckDecodeRecordValue(_ payload: CKRecordValuePayload) throws -> (any CKRecor
         }
         return date as NSDate
     case .asset:
-        guard let fileURL = payload.assetValue?.fileURL else { return nil }
-        return CKAsset(fileURL: URL(fileURLWithPath: fileURL))
+        guard let asset = payload.assetValue else { return nil }
+        return ckDecodeAsset(asset)
+    case .reference:
+        guard let referenceValue = payload.referenceValue else { return nil }
+        return ckDecodeReference(referenceValue)
     case .array:
         let values = try payload.arrayValue?.map { try ckDecodeRecordValue($0) } ?? []
         return values.compactMap { $0 } as NSArray
     }
+}
+
+func ckApplyRecordPayload(_ payload: CKRecordPayload, to record: CKRecord) throws {
+    let desiredKeys = Set(payload.fields.keys)
+    for key in record.allKeys() where !desiredKeys.contains(key) {
+        record.setObject(nil, forKey: key)
+    }
+    for (key, valuePayload) in payload.fields {
+        record.setObject(try ckDecodeRecordValue(valuePayload), forKey: key)
+    }
+    record.parent = payload.parent.map(ckDecodeReference)
 }
 
 func ckDecodeRecord(_ payload: CKRecordPayload) throws -> CKRecord {
@@ -281,20 +348,18 @@ func ckDecodeRecord(_ payload: CKRecordPayload) throws -> CKRecord {
         let data = Data(payload.encodedSystemFields)
         let unarchiver = try NSKeyedUnarchiver(forReadingFrom: data)
         unarchiver.requiresSecureCoding = true
-        guard let decoded = CKRecord(coder: unarchiver) else {
-            throw ckBridgeNSError(code: CKR_FAILURE, message: "Failed to decode CKRecord from encoded system fields")
+        if payload.recordType == CKRecord.SystemType.share {
+            record = CKShare(coder: unarchiver)
+        } else {
+            guard let decoded = CKRecord(coder: unarchiver) else {
+                throw ckBridgeNSError(code: CKR_FAILURE, message: "Failed to decode CKRecord from encoded system fields")
+            }
+            record = decoded
         }
         unarchiver.finishDecoding()
-        record = decoded
     }
 
-    let desiredKeys = Set(payload.fields.keys)
-    for key in record.allKeys() where !desiredKeys.contains(key) {
-        record.setObject(nil, forKey: key)
-    }
-    for (key, valuePayload) in payload.fields {
-        record.setObject(try ckDecodeRecordValue(valuePayload), forKey: key)
-    }
+    try ckApplyRecordPayload(payload, to: record)
     return record
 }
 
@@ -309,8 +374,41 @@ func ckEncodeRecord(_ record: CKRecord) throws -> CKRecordPayload {
         recordType: record.recordType,
         recordID: ckEncodeRecordID(record.recordID),
         fields: fields,
-        encodedSystemFields: try ckArchiveSystemFields(record)
+        encodedSystemFields: try ckArchiveSystemFields(record),
+        recordChangeTag: record.recordChangeTag,
+        creatorUserRecordID: record.creatorUserRecordID.map(ckEncodeRecordID),
+        creationDate: record.creationDate.map(ckISO8601Formatter.string),
+        lastModifiedUserRecordID: record.lastModifiedUserRecordID.map(ckEncodeRecordID),
+        modificationDate: record.modificationDate.map(ckISO8601Formatter.string),
+        parent: record.parent.map(ckEncodeReference),
+        share: record.share.map(ckEncodeReference),
+        changedKeys: record.changedKeys(),
+        allTokens: record.allTokens()
     )
+}
+
+func ckEncodeZone(_ zone: CKRecordZone) -> CKRecordZonePayload {
+    let encryptionScope: Int?
+    if #available(macOS 26.0, *) {
+        encryptionScope = zone.encryptionScope.rawValue
+    } else {
+        encryptionScope = nil
+    }
+    return CKRecordZonePayload(
+        zoneID: ckEncodeZoneID(zone.zoneID),
+        capabilities: UInt64(zone.capabilities.rawValue),
+        share: zone.share.map(ckEncodeReference),
+        encryptionScope: encryptionScope
+    )
+}
+
+func ckDecodeZone(_ payload: CKRecordZonePayload) -> CKRecordZone {
+    let zone = CKRecordZone(zoneID: ckDecodeZoneID(payload.zoneID))
+    if #available(macOS 26.0, *), let encryptionScope = payload.encryptionScope,
+       let scope = CKRecordZone.EncryptionScope(rawValue: encryptionScope) {
+        zone.encryptionScope = scope
+    }
+    return zone
 }
 
 func ckDecodeQuery(_ payload: CKQueryPayload) -> CKQuery {

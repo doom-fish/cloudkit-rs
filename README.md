@@ -2,7 +2,7 @@
 
 Safe Rust bindings for Apple's [CloudKit](https://developer.apple.com/documentation/cloudkit) framework on macOS.
 
-> **Status:** v0.1.0 covers the practical CloudKit container/database surface for account checks, record CRUD, query execution, record values/assets, record IDs/zones, subscription builders, and the two most useful batch operations (`CKModifyRecordsOperation`, `CKQueryOperation`).
+> **Status:** v0.2.0 broadens the bridge from the initial container/database surface to per-area coverage for container, database, record, record ID, zone, subscription, operation, share, notification info, query, fetched results, reference utility, server change token, asset, and user identity APIs. See [COVERAGE.md](COVERAGE.md) for the audited SDK/header-to-source map.
 
 ## Quick start
 
@@ -10,42 +10,45 @@ Safe Rust bindings for Apple's [CloudKit](https://developer.apple.com/documentat
 use cloudkit::prelude::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let container = CKContainer::default();
-    match container.account_status() {
-        Ok(status) => println!("CloudKit account status: {status:?}"),
-        Err(error) if error.is_entitlement_or_account_issue() => {
-            eprintln!("CloudKit unavailable in this process: {error}");
-        }
-        Err(error) => return Err(error.into()),
-    }
+    let mut record = CKRecord::new("Task")?;
+    record.set_object("title", "Ship v0.2.0");
+    record.set_object("done", false);
 
-    let database = container.public_cloud_database();
-    let mut record = CKRecord::new("SmokeRecord")?;
-    record.set_object("title", "doom-fish");
-    record.set_object("count", 1_i64);
-
-    let saved = database.save_record(&record)?;
-    println!("saved record {}", saved.record_id().record_name());
+    let share = CKShare::new_root_record(&record)?;
+    println!(
+        "record_type={} share_record_type={} participants={}",
+        record.record_type(),
+        share.share_record().record_type(),
+        share.participants().len()
+    );
     Ok(())
 }
 ```
 
 ## Highlights
 
-- `CKContainer::default`, `CKContainer::container`, `account_status`, and `fetch_user_record_id`
-- `CKDatabase::{save_record, fetch_record, delete_record, perform_query}`
-- `CKRecord`, `CKRecordID`, `CKRecordZone`, `CKAsset`, `RecordValue`
-- `CKQuery` with sort descriptors
-- `CKSubscription`, `CKQuerySubscription`, and `CKRecordZoneSubscription` builder types
-- `CKModifyRecordsOperation` and `CKQueryOperation`
-- Async completion-handler APIs bridged to Rust callbacks for account status, user-record lookup, and query execution
+- `CKContainer` default/custom containers, account status, user-record lookup, user-identity discovery, and share-participant lookup
+- `CKDatabase` record CRUD, first-batch query helpers, fetched query results, record-zone helpers, and subscription helpers
+- Value-layer Rust wrappers for `CKRecord`, `CKRecordID`, `CKRecordZone`, `CKAsset`, `CKReference`, `CKNotificationInfo`, `CKServerChangeToken`, `CKUserIdentity`, and `CKShare`
+- Operation builders for `CKModifyRecordsOperation`, `CKQueryOperation`, `CKFetchRecordsOperation`, `CKFetchDatabaseChangesOperation`, and `CKFetchRecordZoneChangesOperation`
+- Headless numbered examples `01`–`15` plus per-area integration tests
+
+## Validation
+
+The v0.2.0 bridge is validated with:
+
+```bash
+cargo clippy --all-targets -- -D warnings
+cargo test
+for ex in examples/*.rs; do cargo run --example "$(basename "$ex" .rs)"; done
+```
 
 ## Entitlements / caveats
 
 `CloudKit` requires an entitled app plus an iCloud account for most server-backed operations.
-Unsigned CLI binaries commonly hit `CKErrorMissingEntitlement`, `CKErrorBadContainer`, or `CKErrorNotAuthenticated`. When `CKContainer::default()` cannot be resolved because the current process has no iCloud container entitlement, the crate now surfaces a bridge error instead of letting `CloudKit` raise an Objective-C exception. Smoke tests and applications can therefore report those cases gracefully instead of crashing.
+Unsigned CLI binaries commonly hit `CKErrorMissingEntitlement`, `CKErrorBadContainer`, or `CKErrorNotAuthenticated`. When `CKContainer::default()` cannot be resolved because the current process has no iCloud container entitlement, the crate surfaces a bridge error instead of letting `CloudKit` raise an Objective-C exception. Headless tests and examples can therefore report entitlement/account limitations gracefully instead of crashing.
 
-## Smoke example
+## Examples
 
 Run the defensive framework smoke test with:
 
@@ -53,7 +56,22 @@ Run the defensive framework smoke test with:
 cargo run --example 01_account_status_smoke
 ```
 
-It calls `CKContainer::default().account_status_with_completion_handler(...)`, prints the resulting status (or the entitlement/account error, including a missing-default-container bridge error on unsigned CLIs), and always prints `✅ cloudkit container OK` once the framework call completes.
+Other numbered examples cover the expanded logical areas:
+
+- `02_database_zones_and_subscriptions`
+- `03_record_value_roundtrip`
+- `04_record_id_construction`
+- `05_zone_construction`
+- `06_subscription_builders`
+- `07_operation_builders`
+- `08_share_local_construction`
+- `09_notification_info_builder`
+- `10_query_builder`
+- `11_fetched_results_smoke`
+- `12_reference_utility`
+- `13_server_change_token_bytes`
+- `14_asset_file_url`
+- `15_user_identity_lookup`
 
 ## License
 
