@@ -19,6 +19,9 @@
 )]
 
 pub mod asset;
+#[cfg(feature = "async")]
+#[cfg_attr(docsrs, doc(cfg(feature = "async")))]
+pub mod async_api;
 pub mod constants;
 pub mod container;
 pub mod database;
@@ -42,7 +45,9 @@ pub mod zone;
 
 pub use asset::CKAsset;
 pub use constants::*;
-pub use container::{AccountStatus, CKApplicationPermissions, CKContainer};
+pub use container::{
+    AccountStatus, CKApplicationPermissionStatus, CKApplicationPermissions, CKContainer,
+};
 pub use database::{CKDatabase, CKDatabaseScope};
 pub use error::{
     CloudKitError, CloudKitErrorCode, CLOUDKIT_BRIDGE_ERROR_DOMAIN, CLOUDKIT_ERROR_DOMAIN,
@@ -75,7 +80,9 @@ pub use zone::{
 pub mod prelude {
     pub use crate::asset::CKAsset;
     pub use crate::constants::*;
-    pub use crate::container::{AccountStatus, CKApplicationPermissions, CKContainer};
+    pub use crate::container::{
+        AccountStatus, CKApplicationPermissionStatus, CKApplicationPermissions, CKContainer,
+    };
     pub use crate::database::{CKDatabase, CKDatabaseScope};
     pub use crate::error::{
         CloudKitError, CloudKitErrorCode, CLOUDKIT_BRIDGE_ERROR_DOMAIN, CLOUDKIT_ERROR_DOMAIN,
@@ -95,9 +102,8 @@ pub mod prelude {
     pub use crate::server_change_token::CKServerChangeToken;
     pub use crate::share::*;
     pub use crate::subscription::{
-        CKAnySubscription, CKDatabaseSubscription, CKQuerySubscription,
-        CKRecordZoneSubscription, CKSubscription, CKSubscriptionType,
-        QuerySubscriptionOptions,
+        CKAnySubscription, CKDatabaseSubscription, CKQuerySubscription, CKRecordZoneSubscription,
+        CKSubscription, CKSubscriptionType, QuerySubscriptionOptions,
     };
     pub use crate::sync_engine::*;
     pub use crate::user_identity::{

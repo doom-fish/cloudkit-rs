@@ -50,6 +50,42 @@ impl core::fmt::Display for AccountStatus {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum CKApplicationPermissionStatus {
+    InitialState,
+    CouldNotComplete,
+    Denied,
+    Granted,
+    Unknown(i32),
+}
+
+impl CKApplicationPermissionStatus {
+    #[cfg(feature = "async")]
+    pub(crate) const fn from_raw(raw: i32) -> Self {
+        match raw {
+            0 => Self::InitialState,
+            1 => Self::CouldNotComplete,
+            2 => Self::Denied,
+            3 => Self::Granted,
+            other => Self::Unknown(other),
+        }
+    }
+}
+
+impl core::fmt::Display for CKApplicationPermissionStatus {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let label = match self {
+            Self::InitialState => "initialState",
+            Self::CouldNotComplete => "couldNotComplete",
+            Self::Denied => "denied",
+            Self::Granted => "granted",
+            Self::Unknown(raw) => return write!(f, "unknown({raw})"),
+        };
+        f.write_str(label)
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct CKApplicationPermissions(u64);
 
@@ -248,7 +284,9 @@ impl CKContainer {
         &self,
         user_record_id: CKRecordID,
     ) -> Result<CKUserIdentity, CloudKitError> {
-        self.discover_user_identity(&CKUserIdentityLookupInfo::with_user_record_id(user_record_id))
+        self.discover_user_identity(&CKUserIdentityLookupInfo::with_user_record_id(
+            user_record_id,
+        ))
     }
 
     pub fn fetch_share_participant(
@@ -298,7 +336,9 @@ impl CKContainer {
         &self,
         user_record_id: CKRecordID,
     ) -> Result<CKShareParticipant, CloudKitError> {
-        self.fetch_share_participant(&CKUserIdentityLookupInfo::with_user_record_id(user_record_id))
+        self.fetch_share_participant(&CKUserIdentityLookupInfo::with_user_record_id(
+            user_record_id,
+        ))
     }
 }
 

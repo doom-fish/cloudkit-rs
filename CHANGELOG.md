@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.0] - 2026-05-17
+
+### Added
+
+- Added an optional `async` cargo feature with `Future`-based wrappers for container account/user identity APIs, database record/query helpers, and selected record/database-change operations.
+- Added callback-based Swift thunks in `swift-bridge/Sources/CloudKitBridge/Async.swift` for the Tier 1 async CloudKit surface.
+- Added async smoke tests gated behind `--features async` plus `pollster` and `doom-fish-utils` support dependencies.
+
+### Changed
+
+- Exported `CKApplicationPermissionStatus` and refreshed the README validation guidance to cover the async feature.
+
 ## [0.2.1] - 2026-05-17
 
 ### Added
