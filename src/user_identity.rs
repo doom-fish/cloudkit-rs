@@ -156,7 +156,7 @@ impl CKUserIdentityLookupInfo {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct CKUserIdentity {
     archived_data: Vec<u8>,
     user_record_id: Option<CKRecordID>,
@@ -167,8 +167,42 @@ pub struct CKUserIdentity {
 }
 
 impl CKUserIdentity {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
     pub fn archived_data(&self) -> &[u8] {
         &self.archived_data
+    }
+
+    pub fn with_archived_data(mut self, archived_data: Vec<u8>) -> Self {
+        self.archived_data = archived_data;
+        self
+    }
+
+    pub fn with_user_record_id(mut self, user_record_id: CKRecordID) -> Self {
+        self.user_record_id = Some(user_record_id);
+        self
+    }
+
+    pub fn with_lookup_info(mut self, lookup_info: CKUserIdentityLookupInfo) -> Self {
+        self.lookup_info = Some(lookup_info);
+        self
+    }
+
+    pub fn with_name_components(mut self, name_components: CKPersonNameComponents) -> Self {
+        self.name_components = Some(name_components);
+        self
+    }
+
+    pub fn with_has_i_cloud_account(mut self, has_i_cloud_account: bool) -> Self {
+        self.hasi_cloud_account = has_i_cloud_account;
+        self
+    }
+
+    pub fn with_contact_identifiers(mut self, contact_identifiers: Vec<String>) -> Self {
+        self.contact_identifiers = contact_identifiers;
+        self
     }
 
     pub const fn user_record_id(&self) -> Option<&CKRecordID> {

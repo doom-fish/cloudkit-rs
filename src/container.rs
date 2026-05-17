@@ -50,6 +50,35 @@ impl core::fmt::Display for AccountStatus {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub struct CKApplicationPermissions(u64);
+
+impl CKApplicationPermissions {
+    pub const USER_DISCOVERABILITY: Self = Self(1 << 0);
+
+    pub const fn bits(self) -> u64 {
+        self.0
+    }
+
+    pub const fn contains(self, other: Self) -> bool {
+        (self.0 & other.0) == other.0
+    }
+}
+
+impl core::ops::BitOr for CKApplicationPermissions {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Self(self.0 | rhs.0)
+    }
+}
+
+impl core::ops::BitOrAssign for CKApplicationPermissions {
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.0 |= rhs.0;
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CKContainer {
     identifier: Option<String>,

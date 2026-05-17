@@ -446,6 +446,24 @@ pub(crate) struct CKFetchRecordZoneChangesResultPayload {
     pub operation_error: Option<ErrorPayload>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CKShareMetadataPayload {
+    pub archived_data: Vec<u8>,
+    pub container_identifier: String,
+    pub share: CKSharePayload,
+    #[serde(rename = "hierarchicalRootRecordID")]
+    pub hierarchical_root_record_id: Option<CKRecordIDPayload>,
+    pub participant_role: Option<i32>,
+    pub participant_status: i32,
+    pub participant_permission: i32,
+    pub owner_identity: CKUserIdentityPayload,
+    pub root_record: Option<CKRecordPayload>,
+    pub participant_type: Option<i32>,
+    #[serde(rename = "rootRecordID")]
+    pub root_record_id: Option<CKRecordIDPayload>,
+}
+
 pub(crate) fn cstring_from_str(value: &str, context: &str) -> Result<CString, CloudKitError> {
     CString::new(value).map_err(|error| {
         CloudKitError::bridge(

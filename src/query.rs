@@ -30,6 +30,39 @@ impl SortDescriptor {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct CKLocationSortDescriptor {
+    key: String,
+    relative_latitude: f64,
+    relative_longitude: f64,
+}
+
+impl CKLocationSortDescriptor {
+    pub fn new(
+        key: impl Into<String>,
+        relative_latitude: f64,
+        relative_longitude: f64,
+    ) -> Self {
+        Self {
+            key: key.into(),
+            relative_latitude,
+            relative_longitude,
+        }
+    }
+
+    pub fn key(&self) -> &str {
+        &self.key
+    }
+
+    pub const fn relative_latitude(&self) -> f64 {
+        self.relative_latitude
+    }
+
+    pub const fn relative_longitude(&self) -> f64 {
+        self.relative_longitude
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CKQuery {
     record_type: String,

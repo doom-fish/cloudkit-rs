@@ -581,3 +581,8 @@ impl CKFetchRecordZoneChangesOperation {
         Ok(CKFetchRecordZoneChangesResult::from_payload(payload))
     }
 }
+
+#[path = "operation_support.rs"]
+mod support;
+
+pub use support::*;

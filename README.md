@@ -2,7 +2,7 @@
 
 Safe Rust bindings for Apple's [CloudKit](https://developer.apple.com/documentation/cloudkit) framework on macOS.
 
-> **Status:** v0.2.0 broadens the bridge from the initial container/database surface to per-area coverage for container, database, record, record ID, zone, subscription, operation, share, notification info, query, fetched results, reference utility, server change token, asset, and user identity APIs. See [COVERAGE.md](COVERAGE.md) for the audited SDK/header-to-source map.
+> **Status:** v0.2.1 closes the remaining audited gaps against the macOS 26.2 `CloudKit.framework` surface, adding exported constants, notification models, generic operation/configuration wrappers, share metadata/acceptance/requester APIs, and the `CKSyncEngine` family on top of the existing container/database/record/share/query bindings. See [COVERAGE.md](COVERAGE.md) and [COVERAGE_AUDIT.md](COVERAGE_AUDIT.md) for the audited SDK/header-to-source map.
 
 ## Quick start
 
@@ -11,7 +11,7 @@ use cloudkit::prelude::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut record = CKRecord::new("Task")?;
-    record.set_object("title", "Ship v0.2.0");
+    record.set_object("title", "Ship v0.2.1");
     record.set_object("done", false);
 
     let share = CKShare::new_root_record(&record)?;
@@ -29,13 +29,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 - `CKContainer` default/custom containers, account status, user-record lookup, user-identity discovery, and share-participant lookup
 - `CKDatabase` record CRUD, first-batch query helpers, fetched query results, record-zone helpers, and subscription helpers
-- Value-layer Rust wrappers for `CKRecord`, `CKRecordID`, `CKRecordZone`, `CKAsset`, `CKReference`, `CKNotificationInfo`, `CKServerChangeToken`, `CKUserIdentity`, and `CKShare`
-- Operation builders for `CKModifyRecordsOperation`, `CKQueryOperation`, `CKFetchRecordsOperation`, `CKFetchDatabaseChangesOperation`, and `CKFetchRecordZoneChangesOperation`
-- Headless numbered examples `01`–`15` plus per-area integration tests
+- Value-layer Rust wrappers for `CKRecord`, `CKRecordID`, `CKRecordZone`, `CKAsset`, `CKReference`, `CKNotificationInfo`, `CKNotification*`, `CKServerChangeToken`, `CKUserIdentity`, `CKShare`, `CKShareMetadata`, and `CKSyncEngine`
+- Operation builders for generic `CKOperation*` configuration plus record-zone, subscription, share metadata / acceptance / access-request, web-auth token, and existing record/query/database-change operations
+- Exported `CloudKit` constants for container, error, query, record, zone, and share keys alongside expanded sharing-option helpers and system-sharing observers
+- Headless numbered examples `01`–`15` plus per-area integration tests and `tests/expanded_surface_tests.rs`
 
 ## Validation
 
-The v0.2.0 bridge is validated with:
+The v0.2.1 bridge is validated with:
 
 ```bash
 cargo clippy --all-targets -- -D warnings

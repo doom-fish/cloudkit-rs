@@ -672,3 +672,48 @@ impl CKRecord {
         }
     }
 }
+
+pub trait CKRecordKeyValueSetting {
+    fn object_for_key(&self, key: &str) -> Option<&RecordValue>;
+    fn set_object_for_key<V>(&mut self, key: &str, value: V)
+    where
+        V: Into<RecordValue>;
+    fn object_for_keyed_subscript(&self, key: &str) -> Option<&RecordValue>;
+    fn set_object_for_keyed_subscript<V>(&mut self, key: &str, value: V)
+    where
+        V: Into<RecordValue>;
+    fn all_keys(&self) -> Vec<String>;
+    fn changed_keys(&self) -> &[String];
+}
+
+impl CKRecordKeyValueSetting for CKRecord {
+    fn object_for_key(&self, key: &str) -> Option<&RecordValue> {
+        self.object(key)
+    }
+
+    fn set_object_for_key<V>(&mut self, key: &str, value: V)
+    where
+        V: Into<RecordValue>,
+    {
+        self.set_object(key, value);
+    }
+
+    fn object_for_keyed_subscript(&self, key: &str) -> Option<&RecordValue> {
+        self.object(key)
+    }
+
+    fn set_object_for_keyed_subscript<V>(&mut self, key: &str, value: V)
+    where
+        V: Into<RecordValue>,
+    {
+        self.set_object(key, value);
+    }
+
+    fn all_keys(&self) -> Vec<String> {
+        self.all_keys()
+    }
+
+    fn changed_keys(&self) -> &[String] {
+        self.changed_keys()
+    }
+}

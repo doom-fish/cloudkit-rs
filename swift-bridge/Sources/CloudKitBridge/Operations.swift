@@ -417,3 +417,46 @@ public func ckDatabaseExecuteFetchRecordZoneChangesSync(
         return Int32(error.code)
     }
 }
+
+@_cdecl("ck_database_execute_fetch_web_auth_token_sync")
+public func ckDatabaseExecuteFetchWebAuthTokenSync(
+    _ containerIdentifier: UnsafePointer<CChar>?,
+    _ databaseScope: Int32,
+    _ apiToken: UnsafePointer<CChar>?,
+    _ outJSON: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?,
+    _ outErrorJSON: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?
+) -> Int32 {
+    do {
+        let database = try ckMakeDatabase(containerIdentifier: containerIdentifier, scopeRaw: databaseScope)
+        guard let apiToken else {
+            throw ckBridgeNSError(code: CKR_INVALID_ARGUMENT, message: "Missing API token")
+        }
+        let operation = CKFetchWebAuthTokenOperation(apiToken: String(cString: apiToken))
+        let completion = CKResultHolder<String>()
+        let semaphore = DispatchSemaphore(value: 0)
+        operation.fetchWebAuthTokenResultBlock = { operationResult in
+            switch operationResult {
+            case .success(let webAuthToken):
+                completion.value = webAuthToken
+            case .failure(let error):
+                completion.error = error as NSError
+            }
+            semaphore.signal()
+        }
+        database.add(operation)
+        if semaphore.wait(timeout: .now() + 30) == .timedOut {
+            throw ckTimeoutNSError("CloudKit CKFetchWebAuthTokenOperation")
+        }
+        if let error = completion.error {
+            throw error
+        }
+        guard let webAuthToken = completion.value else {
+            throw ckBridgeNSError(code: CKR_FAILURE, message: "Missing web auth token result")
+        }
+        outJSON?.pointee = ckCString(try ckEncodeJSON(webAuthToken))
+        return CKR_OK
+    } catch let error as NSError {
+        ckWriteError(error, to: outErrorJSON)
+        return Int32(error.code)
+    }
+}

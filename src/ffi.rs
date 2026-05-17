@@ -205,6 +205,33 @@ extern "C" {
         out_json: *mut *mut c_char,
         out_error_json: *mut *mut c_char,
     ) -> i32;
+
+    pub fn ck_container_fetch_share_metadata_sync(
+        container_identifier: *const c_char,
+        share_url: *const c_char,
+        should_fetch_root_record: bool,
+        root_record_desired_keys_json: *const c_char,
+        out_json: *mut *mut c_char,
+        out_error_json: *mut *mut c_char,
+    ) -> i32;
+    pub fn ck_container_accept_share_metadata_sync(
+        container_identifier: *const c_char,
+        share_metadata_json: *const c_char,
+        out_json: *mut *mut c_char,
+        out_error_json: *mut *mut c_char,
+    ) -> i32;
+    pub fn ck_container_request_share_access_sync(
+        container_identifier: *const c_char,
+        share_url: *const c_char,
+        out_error_json: *mut *mut c_char,
+    ) -> i32;
+    pub fn ck_database_execute_fetch_web_auth_token_sync(
+        container_identifier: *const c_char,
+        database_scope: i32,
+        api_token: *const c_char,
+        out_json: *mut *mut c_char,
+        out_error_json: *mut *mut c_char,
+    ) -> i32;
 }
 
 pub type JsonCallback =

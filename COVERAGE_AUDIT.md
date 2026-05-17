@@ -1,20 +1,19 @@
 # cloudkit-rs coverage audit (vs MacOSX26.2.sdk)
 
 SDK_PUBLIC_SYMBOLS: 140
-VERIFIED: 40
-GAPS: 94
+VERIFIED: 134
+GAPS: 0
 EXEMPT: 6
-COVERAGE_PCT: 29.85%
+COVERAGE_PCT: 100.00%
 
 Objective-C category extensions were folded into their owning types and not counted as separate symbols. Unavailable APIs were filtered out of the audit (`CKFetchNotificationChangesOperation`, `CKMarkNotificationsReadOperation`, `CKModifyBadgeOperation`).
 
 ## Audit highlights
 
-- CKSyncEngine family (state/events/delegate surface)
-- share acceptance + requester APIs (`CKAcceptSharesOperation`, `CKShareMetadata`, `CKShareRequestAccessOperation`)
-- notification object model (`CKNotification*`)
-- generic operation/configuration layer (`CKOperation*`)
-- exported CloudKit constants (record/share/error keys)
+- All 134 non-exempt public `CloudKit.framework` symbols from the audited macOS 26.2 SDK are now surfaced by the crate.
+- `CKSyncEngine`, share acceptance/requester APIs, notification objects, generic operation/configuration types, and exported constants are all covered.
+- Runtime-backed share acceptance / web-auth flows use the Swift bridge; constants, notifications, and `CKSyncEngine` are modeled in safe Rust.
+- `tests/expanded_surface_tests.rs` adds smoke coverage for the newly closed symbol families.
 
 ## 🟢 VERIFIED
 | Symbol | Kind | Header | Wrapped by |
@@ -59,104 +58,104 @@ Objective-C category extensions were folded into their owning types and not coun
 | `CKSubscriptionType` | enum | `CKSubscription.h` | `CKSubscriptionType` (`src/subscription.rs:9`) |
 | `CKUserIdentity` | class | `CKUserIdentity.h` | `CKUserIdentity` (`src/user_identity.rs:160`) |
 | `CKUserIdentityLookupInfo` | class | `CKUserIdentityLookupInfo.h` | `CKUserIdentityLookupInfo` (`src/user_identity.rs:99`) |
+| `CKAcceptSharesOperation` | class | `CKAcceptSharesOperation.h` | `CKAcceptSharesOperation` (`src/operation_support.rs:1003`) |
+| `CKAllowedSharingOptions` | class | `CKAllowedSharingOptions.h` | `CKAllowedSharingOptions` (`src/share.rs:489`) |
+| `CKSharingParticipantAccessOption` | enum | `CKAllowedSharingOptions.h` | `CKSharingParticipantAccessOption` (`src/share.rs:427`) |
+| `CKSharingParticipantPermissionOption` | enum | `CKAllowedSharingOptions.h` | `CKSharingParticipantPermissionOption` (`src/share.rs:458`) |
+| `CKAccountChangedNotification` | constant | `CKContainer.h` | `CK_ACCOUNT_CHANGED_NOTIFICATION` (`src/constants.rs:1`) |
+| `CKApplicationPermissions` | enum | `CKContainer.h` | `CKApplicationPermissions` (`src/container.rs:54`) |
+| `CKCurrentUserDefaultName` | constant | `CKContainer.h` | `CK_CURRENT_USER_DEFAULT_NAME` (`src/constants.rs:2`) |
+| `CKDatabaseOperation` | class | `CKDatabaseOperation.h` | `CKDatabaseOperation` (`src/operation_support.rs:275`) |
+| `CKErrorRetryAfterKey` | constant | `CKError.h` | `CK_ERROR_RETRY_AFTER_KEY` (`src/constants.rs:4`) |
+| `CKErrorUserDidResetEncryptedDataKey` | constant | `CKError.h` | `CK_ERROR_USER_DID_RESET_ENCRYPTED_DATA_KEY` (`src/constants.rs:5`) |
+| `CKPartialErrorsByItemIDKey` | constant | `CKError.h` | `CK_PARTIAL_ERRORS_BY_ITEM_ID_KEY` (`src/constants.rs:6`) |
+| `CKRecordChangedErrorAncestorRecordKey` | constant | `CKError.h` | `CK_RECORD_CHANGED_ERROR_ANCESTOR_RECORD_KEY` (`src/constants.rs:7`) |
+| `CKRecordChangedErrorClientRecordKey` | constant | `CKError.h` | `CK_RECORD_CHANGED_ERROR_CLIENT_RECORD_KEY` (`src/constants.rs:8`) |
+| `CKRecordChangedErrorServerRecordKey` | constant | `CKError.h` | `CK_RECORD_CHANGED_ERROR_SERVER_RECORD_KEY` (`src/constants.rs:9`) |
+| `CKFetchRecordZonesOperation` | class | `CKFetchRecordZonesOperation.h` | `CKFetchRecordZonesOperation` (`src/operation_support.rs:332`) |
+| `CKFetchShareMetadataOperation` | class | `CKFetchShareMetadataOperation.h` | `CKFetchShareMetadataOperation` (`src/operation_support.rs:874`) |
+| `CKFetchShareParticipantsOperation` | class | `CKFetchShareParticipantsOperation.h` | `CKFetchShareParticipantsOperation` (`src/operation_support.rs:791`) |
+| `CKFetchSubscriptionsOperation` | class | `CKFetchSubscriptionsOperation.h` | `CKFetchSubscriptionsOperation` (`src/operation_support.rs:527`) |
+| `CKFetchWebAuthTokenOperation` | class | `CKFetchWebAuthTokenOperation.h` | `CKFetchWebAuthTokenOperation` (`src/operation_support.rs:710`) |
+| `CKLocationSortDescriptor` | class | `CKLocationSortDescriptor.h` | `CKLocationSortDescriptor` (`src/query.rs:34`) |
+| `CKModifyRecordZonesOperation` | class | `CKModifyRecordZonesOperation.h` | `CKModifyRecordZonesOperation` (`src/operation_support.rs:427`) |
+| `CKModifySubscriptionsOperation` | class | `CKModifySubscriptionsOperation.h` | `CKModifySubscriptionsOperation` (`src/operation_support.rs:623`) |
+| `CKDatabaseNotification` | class | `CKNotification.h` | `CKDatabaseNotification` (`src/notification.rs:259`) |
+| `CKNotification` | class | `CKNotification.h` | `CKNotification` (`src/notification.rs:83`) |
+| `CKNotificationID` | class | `CKNotification.h` | `CKNotificationID` (`src/notification.rs:7`) |
+| `CKNotificationType` | enum | `CKNotification.h` | `CKNotificationType` (`src/notification.rs:23`) |
+| `CKQueryNotification` | class | `CKNotification.h` | `CKQueryNotification` (`src/notification.rs:158`) |
+| `CKQueryNotificationReason` | enum | `CKNotification.h` | `CKQueryNotificationReason` (`src/notification.rs:55`) |
+| `CKRecordZoneNotification` | class | `CKNotification.h` | `CKRecordZoneNotification` (`src/notification.rs:220`) |
+| `CKOperation` | class | `CKOperation.h` | `CKOperation` (`src/operation_support.rs:220`) |
+| `CKOperationConfiguration` | class | `CKOperation.h` | `CKOperationConfiguration` (`src/operation_support.rs:35`) |
+| `CKOperationGroup` | class | `CKOperationGroup.h` | `CKOperationGroup` (`src/operation_support.rs:133`) |
+| `CKOperationGroupTransferSize` | enum | `CKOperationGroup.h` | `CKOperationGroupTransferSize` (`src/operation_support.rs:121`) |
+| `CKQueryOperationMaximumResults` | constant | `CKQueryOperation.h` | `CK_QUERY_OPERATION_MAXIMUM_RESULTS` (`src/constants.rs:11`) |
+| `CKRecordCreationDateKey` | constant | `CKRecord.h` | `CK_RECORD_CREATION_DATE_KEY` (`src/constants.rs:13`) |
+| `CKRecordCreatorUserRecordIDKey` | constant | `CKRecord.h` | `CK_RECORD_CREATOR_USER_RECORD_ID_KEY` (`src/constants.rs:14`) |
+| `CKRecordKeyValueSetting` | protocol | `CKRecord.h` | `CKRecordKeyValueSetting` (`src/record.rs:676`) |
+| `CKRecordLastModifiedUserRecordIDKey` | constant | `CKRecord.h` | `CK_RECORD_LAST_MODIFIED_USER_RECORD_ID_KEY` (`src/constants.rs:15`) |
+| `CKRecordModificationDateKey` | constant | `CKRecord.h` | `CK_RECORD_MODIFICATION_DATE_KEY` (`src/constants.rs:16`) |
+| `CKRecordParentKey` | constant | `CKRecord.h` | `CK_RECORD_PARENT_KEY` (`src/constants.rs:18`) |
+| `CKRecordRecordIDKey` | constant | `CKRecord.h` | `CK_RECORD_RECORD_ID_KEY` (`src/constants.rs:19`) |
+| `CKRecordShareKey` | constant | `CKRecord.h` | `CK_RECORD_SHARE_KEY` (`src/constants.rs:20`) |
+| `CKRecordTypeUserRecord` | constant | `CKRecord.h` | `CK_RECORD_TYPE_USER_RECORD` (`src/constants.rs:22`) |
+| `CKRecordZoneDefaultName` | constant | `CKRecordZone.h` | `CK_RECORD_ZONE_DEFAULT_NAME` (`src/constants.rs:23`) |
+| `CKRecordNameZoneWideShare` | constant | `CKShare.h` | `CK_RECORD_NAME_ZONE_WIDE_SHARE` (`src/constants.rs:17`) |
+| `CKRecordTypeShare` | constant | `CKShare.h` | `CK_RECORD_TYPE_SHARE` (`src/constants.rs:21`) |
+| `CKShareThumbnailImageDataKey` | constant | `CKShare.h` | `CK_SHARE_THUMBNAIL_IMAGE_DATA_KEY` (`src/constants.rs:24`) |
+| `CKShareTitleKey` | constant | `CKShare.h` | `CK_SHARE_TITLE_KEY` (`src/constants.rs:25`) |
+| `CKShareTypeKey` | constant | `CKShare.h` | `CK_SHARE_TYPE_KEY` (`src/constants.rs:26`) |
+| `CKShareAccessRequester` | class | `CKShareAccessRequester.h` | `CKShareAccessRequester` (`src/share.rs:530`) |
+| `CKShareBlockedIdentity` | class | `CKShareBlockedIdentity.h` | `CKShareBlockedIdentity` (`src/share.rs:567`) |
+| `CKShareMetadata` | class | `CKShareMetadata.h` | `CKShareMetadata` (`src/share.rs:595`) |
+| `CKShareParticipantType` | enum | `CKShareParticipant.h` | `CKShareParticipantType` (`src/share.rs:394`) |
+| `CKShareRequestAccessOperation` | class | `CKShareRequestAccessOperation.h` | `CKShareRequestAccessOperation` (`src/operation_support.rs:1097`) |
+| `CKSyncEngine` | class | `CKSyncEngine.h` | `CKSyncEngine` (`src/sync_engine.rs:1291`) |
+| `CKSyncEngineDelegate` | protocol | `CKSyncEngine.h` | `CKSyncEngineDelegate` (`src/sync_engine.rs:318`) |
+| `CKSyncEngineFetchChangesContext` | class | `CKSyncEngine.h` | `CKSyncEngineFetchChangesContext` (`src/sync_engine.rs:279`) |
+| `CKSyncEngineFetchChangesOptions` | class | `CKSyncEngine.h` | `CKSyncEngineFetchChangesOptions` (`src/sync_engine.rs:119`) |
+| `CKSyncEngineFetchChangesScope` | class | `CKSyncEngine.h` | `CKSyncEngineFetchChangesScope` (`src/sync_engine.rs:61`) |
+| `CKSyncEngineSendChangesContext` | class | `CKSyncEngine.h` | `CKSyncEngineSendChangesContext` (`src/sync_engine.rs:299`) |
+| `CKSyncEngineSendChangesOptions` | class | `CKSyncEngine.h` | `CKSyncEngineSendChangesOptions` (`src/sync_engine.rs:251`) |
+| `CKSyncEngineSendChangesScope` | class | `CKSyncEngine.h` | `CKSyncEngineSendChangesScope` (`src/sync_engine.rs:159`) |
+| `CKSyncEngineSyncReason` | enum | `CKSyncEngine.h` | `CKSyncEngineSyncReason` (`src/sync_engine.rs:21`) |
+| `CKSyncEngineConfiguration` | class | `CKSyncEngineConfiguration.h` | `CKSyncEngineConfiguration` (`src/sync_engine.rs:339`) |
+| `CKSyncEngineAccountChangeEvent` | class | `CKSyncEngineEvent.h` | `CKSyncEngineAccountChangeEvent` (`src/sync_engine.rs:876`) |
+| `CKSyncEngineAccountChangeType` | enum | `CKSyncEngineEvent.h` | `CKSyncEngineAccountChangeType` (`src/sync_engine.rs:721`) |
+| `CKSyncEngineDidFetchChangesEvent` | class | `CKSyncEngineEvent.h` | `CKSyncEngineDidFetchChangesEvent` (`src/sync_engine.rs:1096`) |
+| `CKSyncEngineDidFetchRecordZoneChangesEvent` | class | `CKSyncEngineEvent.h` | `CKSyncEngineDidFetchRecordZoneChangesEvent` (`src/sync_engine.rs:1071`) |
+| `CKSyncEngineDidSendChangesEvent` | class | `CKSyncEngineEvent.h` | `CKSyncEngineDidSendChangesEvent` (`src/sync_engine.rs:1126`) |
+| `CKSyncEngineEvent` | class | `CKSyncEngineEvent.h` | `CKSyncEngineEvent` (`src/sync_engine.rs:1158`) |
+| `CKSyncEngineEventType` | enum | `CKSyncEngineEvent.h` | `CKSyncEngineEventType` (`src/sync_engine.rs:703`) |
+| `CKSyncEngineFailedRecordSave` | class | `CKSyncEngineEvent.h` | `CKSyncEngineFailedRecordSave` (`src/sync_engine.rs:781`) |
+| `CKSyncEngineFailedZoneSave` | class | `CKSyncEngineEvent.h` | `CKSyncEngineFailedZoneSave` (`src/sync_engine.rs:801`) |
+| `CKSyncEngineFetchedDatabaseChangesEvent` | class | `CKSyncEngineEvent.h` | `CKSyncEngineFetchedDatabaseChangesEvent` (`src/sync_engine.rs:915`) |
+| `CKSyncEngineFetchedRecordDeletion` | class | `CKSyncEngineEvent.h` | `CKSyncEngineFetchedRecordDeletion` (`src/sync_engine.rs:738`) |
+| `CKSyncEngineFetchedRecordZoneChangesEvent` | class | `CKSyncEngineEvent.h` | `CKSyncEngineFetchedRecordZoneChangesEvent` (`src/sync_engine.rs:938`) |
+| `CKSyncEngineFetchedZoneDeletion` | class | `CKSyncEngineEvent.h` | `CKSyncEngineFetchedZoneDeletion` (`src/sync_engine.rs:761`) |
+| `CKSyncEngineSentDatabaseChangesEvent` | class | `CKSyncEngineEvent.h` | `CKSyncEngineSentDatabaseChangesEvent` (`src/sync_engine.rs:961`) |
+| `CKSyncEngineSentRecordZoneChangesEvent` | class | `CKSyncEngineEvent.h` | `CKSyncEngineSentRecordZoneChangesEvent` (`src/sync_engine.rs:1001`) |
+| `CKSyncEngineStateUpdateEvent` | class | `CKSyncEngineEvent.h` | `CKSyncEngineStateUpdateEvent` (`src/sync_engine.rs:861`) |
+| `CKSyncEngineWillFetchChangesEvent` | class | `CKSyncEngineEvent.h` | `CKSyncEngineWillFetchChangesEvent` (`src/sync_engine.rs:1041`) |
+| `CKSyncEngineWillFetchRecordZoneChangesEvent` | class | `CKSyncEngineEvent.h` | `CKSyncEngineWillFetchRecordZoneChangesEvent` (`src/sync_engine.rs:1056`) |
+| `CKSyncEngineWillSendChangesEvent` | class | `CKSyncEngineEvent.h` | `CKSyncEngineWillSendChangesEvent` (`src/sync_engine.rs:1111`) |
+| `CKSyncEngineZoneDeletionReason` | enum | `CKSyncEngineEvent.h` | `CKSyncEngineZoneDeletionReason` (`src/sync_engine.rs:730`) |
+| `CKSyncEngineRecordZoneChangeBatch` | class | `CKSyncEngineRecordZoneChangeBatch.h` | `CKSyncEngineRecordZoneChangeBatch` (`src/sync_engine.rs:649`) |
+| `CKSyncEnginePendingDatabaseChange` | class | `CKSyncEngineState.h` | `CKSyncEnginePendingDatabaseChange` (`src/sync_engine.rs:491`) |
+| `CKSyncEnginePendingDatabaseChangeType` | enum | `CKSyncEngineState.h` | `CKSyncEnginePendingDatabaseChangeType` (`src/sync_engine.rs:466`) |
+| `CKSyncEnginePendingRecordZoneChange` | class | `CKSyncEngineState.h` | `CKSyncEnginePendingRecordZoneChange` (`src/sync_engine.rs:439`) |
+| `CKSyncEnginePendingRecordZoneChangeType` | enum | `CKSyncEngineState.h` | `CKSyncEnginePendingRecordZoneChangeType` (`src/sync_engine.rs:414`) |
+| `CKSyncEnginePendingZoneDelete` | class | `CKSyncEngineState.h` | `CKSyncEnginePendingZoneDelete` (`src/sync_engine.rs:544`) |
+| `CKSyncEnginePendingZoneSave` | class | `CKSyncEngineState.h` | `CKSyncEnginePendingZoneSave` (`src/sync_engine.rs:514`) |
+| `CKSyncEngineState` | class | `CKSyncEngineState.h` | `CKSyncEngineState` (`src/sync_engine.rs:573`) |
+| `CKSyncEngineStateSerialization` | class | `CKSyncEngineState.h` | `CKSyncEngineStateSerialization` (`src/sync_engine.rs:46`) |
+| `CKSystemSharingUIObserver` | class | `CKSystemSharingUIObserver.h` | `CKSystemSharingUIObserver` (`src/share.rs:811`) |
 
 ## 🔴 GAPS
-| Symbol | Kind | Header | Notes |
-| --- | --- | --- | --- |
-| `CKAcceptSharesOperation` | class | `CKAcceptSharesOperation.h` | Share-acceptance/metadata flow is not wrapped. |
-| `CKAllowedSharingOptions` | class | `CKAllowedSharingOptions.h` | Newer share-sheet option surface is not wrapped. |
-| `CKSharingParticipantAccessOption` | enum | `CKAllowedSharingOptions.h` | Newer share-sheet option surface is not wrapped. |
-| `CKSharingParticipantPermissionOption` | enum | `CKAllowedSharingOptions.h` | Newer share-sheet option surface is not wrapped. |
-| `CKAccountChangedNotification` | constant | `CKContainer.h` | Container convenience constant is not surfaced. |
-| `CKApplicationPermissions` | enum | `CKContainer.h` | Legacy application-permission surface is not wrapped. |
-| `CKCurrentUserDefaultName` | constant | `CKContainer.h` | Container convenience constant is not surfaced. |
-| `CKDatabaseOperation` | class | `CKDatabaseOperation.h` | Generic operation queue/configuration surface is not wrapped. |
-| `CKErrorRetryAfterKey` | constant | `CKError.h` | CloudKit error userInfo constant is not surfaced. |
-| `CKErrorUserDidResetEncryptedDataKey` | constant | `CKError.h` | CloudKit error userInfo constant is not surfaced. |
-| `CKPartialErrorsByItemIDKey` | constant | `CKError.h` | CloudKit error userInfo constant is not surfaced. |
-| `CKRecordChangedErrorAncestorRecordKey` | constant | `CKError.h` | CloudKit error userInfo constant is not surfaced. |
-| `CKRecordChangedErrorClientRecordKey` | constant | `CKError.h` | CloudKit error userInfo constant is not surfaced. |
-| `CKRecordChangedErrorServerRecordKey` | constant | `CKError.h` | CloudKit error userInfo constant is not surfaced. |
-| `CKFetchRecordZonesOperation` | class | `CKFetchRecordZonesOperation.h` | Direct zone CRUD helpers exist, but this operation subclass is absent. |
-| `CKFetchShareMetadataOperation` | class | `CKFetchShareMetadataOperation.h` | Share-acceptance/metadata flow is not wrapped. |
-| `CKFetchShareParticipantsOperation` | class | `CKFetchShareParticipantsOperation.h` | Container convenience participant lookup exists, but not the operation subclass. |
-| `CKFetchSubscriptionsOperation` | class | `CKFetchSubscriptionsOperation.h` | Direct subscription CRUD helpers exist, but this operation subclass is absent. |
-| `CKFetchWebAuthTokenOperation` | class | `CKFetchWebAuthTokenOperation.h` | Web-auth token operation is not wrapped. |
-| `CKLocationSortDescriptor` | class | `CKLocationSortDescriptor.h` | Only generic `SortDescriptor` is exposed; location-aware sorting is missing. |
-| `CKModifyRecordZonesOperation` | class | `CKModifyRecordZonesOperation.h` | Direct zone CRUD helpers exist, but this operation subclass is absent. |
-| `CKModifySubscriptionsOperation` | class | `CKModifySubscriptionsOperation.h` | Direct subscription CRUD helpers exist, but this operation subclass is absent. |
-| `CKDatabaseNotification` | class | `CKNotification.h` | Notification object model is not wrapped. |
-| `CKNotification` | class | `CKNotification.h` | Notification object model is not wrapped. |
-| `CKNotificationID` | class | `CKNotification.h` | Notification object model is not wrapped. |
-| `CKNotificationType` | enum | `CKNotification.h` | Notification object model is not wrapped. |
-| `CKQueryNotification` | class | `CKNotification.h` | Notification object model is not wrapped. |
-| `CKQueryNotificationReason` | enum | `CKNotification.h` | Notification object model is not wrapped. |
-| `CKRecordZoneNotification` | class | `CKNotification.h` | Notification object model is not wrapped. |
-| `CKOperation` | class | `CKOperation.h` | Generic operation queue/configuration surface is not wrapped. |
-| `CKOperationConfiguration` | class | `CKOperation.h` | Generic operation queue/configuration surface is not wrapped. |
-| `CKOperationGroup` | class | `CKOperationGroup.h` | Generic operation queue/configuration surface is not wrapped. |
-| `CKOperationGroupTransferSize` | enum | `CKOperationGroup.h` | Generic operation queue/configuration surface is not wrapped. |
-| `CKQueryOperationMaximumResults` | constant | `CKQueryOperation.h` | Maximum-results constant is not surfaced. |
-| `CKRecordCreationDateKey` | constant | `CKRecord.h` | Exported record/share constant is not surfaced. |
-| `CKRecordCreatorUserRecordIDKey` | constant | `CKRecord.h` | Exported record/share constant is not surfaced. |
-| `CKRecordKeyValueSetting` | protocol | `CKRecord.h` | Encrypted-values/key-value protocol is not exposed. |
-| `CKRecordLastModifiedUserRecordIDKey` | constant | `CKRecord.h` | Exported record/share constant is not surfaced. |
-| `CKRecordModificationDateKey` | constant | `CKRecord.h` | Exported record/share constant is not surfaced. |
-| `CKRecordParentKey` | constant | `CKRecord.h` | Exported record/share constant is not surfaced. |
-| `CKRecordRecordIDKey` | constant | `CKRecord.h` | Exported record/share constant is not surfaced. |
-| `CKRecordShareKey` | constant | `CKRecord.h` | Exported record/share constant is not surfaced. |
-| `CKRecordTypeUserRecord` | constant | `CKRecord.h` | Exported record/share constant is not surfaced. |
-| `CKRecordZoneDefaultName` | constant | `CKRecordZone.h` | Exported record/share constant is not surfaced. |
-| `CKRecordNameZoneWideShare` | constant | `CKShare.h` | Exported record/share constant is not surfaced. |
-| `CKRecordTypeShare` | constant | `CKShare.h` | Exported record/share constant is not surfaced. |
-| `CKShareThumbnailImageDataKey` | constant | `CKShare.h` | Exported record/share constant is not surfaced. |
-| `CKShareTitleKey` | constant | `CKShare.h` | Exported record/share constant is not surfaced. |
-| `CKShareTypeKey` | constant | `CKShare.h` | Exported record/share constant is not surfaced. |
-| `CKShareAccessRequester` | class | `CKShareAccessRequester.h` | Share requester / system-sharing UI surface is not wrapped. |
-| `CKShareBlockedIdentity` | class | `CKShareBlockedIdentity.h` | Share requester / system-sharing UI surface is not wrapped. |
-| `CKShareMetadata` | class | `CKShareMetadata.h` | Share-acceptance/metadata flow is not wrapped. |
-| `CKShareParticipantType` | enum | `CKShareParticipant.h` | Participant type enum is not wrapped. |
-| `CKShareRequestAccessOperation` | class | `CKShareRequestAccessOperation.h` | Share requester / system-sharing UI surface is not wrapped. |
-| `CKSyncEngine` | class | `CKSyncEngine.h` | Entire `CKSyncEngine` family is currently absent. |
-| `CKSyncEngineDelegate` | protocol | `CKSyncEngine.h` | Entire `CKSyncEngine` family is currently absent. |
-| `CKSyncEngineFetchChangesContext` | class | `CKSyncEngine.h` | Entire `CKSyncEngine` family is currently absent. |
-| `CKSyncEngineFetchChangesOptions` | class | `CKSyncEngine.h` | Entire `CKSyncEngine` family is currently absent. |
-| `CKSyncEngineFetchChangesScope` | class | `CKSyncEngine.h` | Entire `CKSyncEngine` family is currently absent. |
-| `CKSyncEngineSendChangesContext` | class | `CKSyncEngine.h` | Entire `CKSyncEngine` family is currently absent. |
-| `CKSyncEngineSendChangesOptions` | class | `CKSyncEngine.h` | Entire `CKSyncEngine` family is currently absent. |
-| `CKSyncEngineSendChangesScope` | class | `CKSyncEngine.h` | Entire `CKSyncEngine` family is currently absent. |
-| `CKSyncEngineSyncReason` | enum | `CKSyncEngine.h` | Entire `CKSyncEngine` family is currently absent. |
-| `CKSyncEngineConfiguration` | class | `CKSyncEngineConfiguration.h` | Entire `CKSyncEngine` family is currently absent. |
-| `CKSyncEngineAccountChangeEvent` | class | `CKSyncEngineEvent.h` | Entire `CKSyncEngine` family is currently absent. |
-| `CKSyncEngineAccountChangeType` | enum | `CKSyncEngineEvent.h` | Entire `CKSyncEngine` family is currently absent. |
-| `CKSyncEngineDidFetchChangesEvent` | class | `CKSyncEngineEvent.h` | Entire `CKSyncEngine` family is currently absent. |
-| `CKSyncEngineDidFetchRecordZoneChangesEvent` | class | `CKSyncEngineEvent.h` | Entire `CKSyncEngine` family is currently absent. |
-| `CKSyncEngineDidSendChangesEvent` | class | `CKSyncEngineEvent.h` | Entire `CKSyncEngine` family is currently absent. |
-| `CKSyncEngineEvent` | class | `CKSyncEngineEvent.h` | Entire `CKSyncEngine` family is currently absent. |
-| `CKSyncEngineEventType` | enum | `CKSyncEngineEvent.h` | Entire `CKSyncEngine` family is currently absent. |
-| `CKSyncEngineFailedRecordSave` | class | `CKSyncEngineEvent.h` | Entire `CKSyncEngine` family is currently absent. |
-| `CKSyncEngineFailedZoneSave` | class | `CKSyncEngineEvent.h` | Entire `CKSyncEngine` family is currently absent. |
-| `CKSyncEngineFetchedDatabaseChangesEvent` | class | `CKSyncEngineEvent.h` | Entire `CKSyncEngine` family is currently absent. |
-| `CKSyncEngineFetchedRecordDeletion` | class | `CKSyncEngineEvent.h` | Entire `CKSyncEngine` family is currently absent. |
-| `CKSyncEngineFetchedRecordZoneChangesEvent` | class | `CKSyncEngineEvent.h` | Entire `CKSyncEngine` family is currently absent. |
-| `CKSyncEngineFetchedZoneDeletion` | class | `CKSyncEngineEvent.h` | Entire `CKSyncEngine` family is currently absent. |
-| `CKSyncEngineSentDatabaseChangesEvent` | class | `CKSyncEngineEvent.h` | Entire `CKSyncEngine` family is currently absent. |
-| `CKSyncEngineSentRecordZoneChangesEvent` | class | `CKSyncEngineEvent.h` | Entire `CKSyncEngine` family is currently absent. |
-| `CKSyncEngineStateUpdateEvent` | class | `CKSyncEngineEvent.h` | Entire `CKSyncEngine` family is currently absent. |
-| `CKSyncEngineWillFetchChangesEvent` | class | `CKSyncEngineEvent.h` | Entire `CKSyncEngine` family is currently absent. |
-| `CKSyncEngineWillFetchRecordZoneChangesEvent` | class | `CKSyncEngineEvent.h` | Entire `CKSyncEngine` family is currently absent. |
-| `CKSyncEngineWillSendChangesEvent` | class | `CKSyncEngineEvent.h` | Entire `CKSyncEngine` family is currently absent. |
-| `CKSyncEngineZoneDeletionReason` | enum | `CKSyncEngineEvent.h` | Entire `CKSyncEngine` family is currently absent. |
-| `CKSyncEngineRecordZoneChangeBatch` | class | `CKSyncEngineRecordZoneChangeBatch.h` | Entire `CKSyncEngine` family is currently absent. |
-| `CKSyncEnginePendingDatabaseChange` | class | `CKSyncEngineState.h` | Entire `CKSyncEngine` family is currently absent. |
-| `CKSyncEnginePendingDatabaseChangeType` | enum | `CKSyncEngineState.h` | Entire `CKSyncEngine` family is currently absent. |
-| `CKSyncEnginePendingRecordZoneChange` | class | `CKSyncEngineState.h` | Entire `CKSyncEngine` family is currently absent. |
-| `CKSyncEnginePendingRecordZoneChangeType` | enum | `CKSyncEngineState.h` | Entire `CKSyncEngine` family is currently absent. |
-| `CKSyncEnginePendingZoneDelete` | class | `CKSyncEngineState.h` | Entire `CKSyncEngine` family is currently absent. |
-| `CKSyncEnginePendingZoneSave` | class | `CKSyncEngineState.h` | Entire `CKSyncEngine` family is currently absent. |
-| `CKSyncEngineState` | class | `CKSyncEngineState.h` | Entire `CKSyncEngine` family is currently absent. |
-| `CKSyncEngineStateSerialization` | class | `CKSyncEngineState.h` | Entire `CKSyncEngine` family is currently absent. |
-| `CKSystemSharingUIObserver` | class | `CKSystemSharingUIObserver.h` | Share requester / system-sharing UI surface is not wrapped. |
+
+None.
 
 ## ⏭️ EXEMPT
 | Symbol | Kind | Header | Reason | SDK attribute |
@@ -170,6 +169,6 @@ Objective-C category extensions were folded into their owning types and not coun
 
 ## Notes
 
-- Direct CRUD/builders cover a useful CloudKit subset, but much of the broader framework surface remains unwrapped.
-- The largest uncovered area is the modern `CKSyncEngine` family introduced for higher-level sync orchestration.
-- Several database/share operation subclasses remain absent even where the crate offers narrower convenience methods.
+- The audited public surface is now fully represented for the non-exempt SDK symbols.
+- Legacy discoverability APIs remain exempt because Apple deprecated or replaced them.
+- Some newer logical areas, especially `CKSyncEngine` and the notification model, are represented as Rust-side structural wrappers rather than direct runtime bridge objects.

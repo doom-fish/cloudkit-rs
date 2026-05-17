@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.2.1] - 2026-05-17
+
+### Added
+
+- Added exported CloudKit constants in `src/constants.rs` for container, error, query, record, zone, and share keys verified against the current macOS SDK.
+- Added pure-Rust notification wrappers in `src/notification.rs` for `CKNotification`, `CKQueryNotification`, `CKRecordZoneNotification`, `CKDatabaseNotification`, and related ID/reason/type enums.
+- Added generic operation/configuration wrappers in `src/operation_support.rs` covering `CKOperation*`, record-zone/subscription operation subclasses, share metadata/acceptance/access-request operations, and web-auth token fetching.
+- Added sharing-option, requester, blocked-identity, share-metadata, and system-sharing observer models in `src/share.rs`.
+- Added the `CKSyncEngine` family in `src/sync_engine.rs`, including configuration, delegate, state serialization, pending changes, change batches, and event models.
+- Added `tests/expanded_surface_tests.rs` to smoke-test the newly closed symbol families.
+
+### Changed
+
+- Updated the Swift bridge to modern CloudKit Swift API names for share metadata fetching/acceptance, share access requests, and web-auth token operations.
+- Closed the remaining `COVERAGE_AUDIT.md` gaps and raised the audited non-exempt SDK coverage to 100%.
+- Refreshed README/COVERAGE documentation for the expanded v0.2.1 surface.
+
 ## [0.2.0] - 2026-05-16
 
 ### Added

@@ -19,11 +19,13 @@
 )]
 
 pub mod asset;
+pub mod constants;
 pub mod container;
 pub mod database;
 pub mod error;
 pub mod fetched_results;
 pub mod ffi;
+pub mod notification;
 pub mod notification_info;
 pub mod operation;
 mod private;
@@ -34,11 +36,13 @@ pub mod reference_utility;
 pub mod server_change_token;
 pub mod share;
 pub mod subscription;
+pub mod sync_engine;
 pub mod user_identity;
 pub mod zone;
 
 pub use asset::CKAsset;
-pub use container::{AccountStatus, CKContainer};
+pub use constants::*;
+pub use container::{AccountStatus, CKApplicationPermissions, CKContainer};
 pub use database::{CKDatabase, CKDatabaseScope};
 pub use error::{
     CloudKitError, CloudKitErrorCode, CLOUDKIT_BRIDGE_ERROR_DOMAIN, CLOUDKIT_ERROR_DOMAIN,
@@ -48,26 +52,20 @@ pub use fetched_results::{
     CKFetchRecordZoneResult, CKFetchRecordsResult, CKFetchedQueryResults, CKQueryCursor,
     CKRecordResult,
 };
+pub use notification::*;
 pub use notification_info::CKNotificationInfo;
-pub use operation::{
-    CKFetchDatabaseChangesOperation, CKFetchRecordZoneChangesConfiguration,
-    CKFetchRecordZoneChangesOperation, CKFetchRecordsOperation, CKModifyRecordsOperation,
-    CKQueryOperation, CKRecordDeleteResult, CKRecordSavePolicy, CKRecordSaveResult,
-    ModifyRecordsResult, QueryMatchResult, QueryOperationResult,
-};
-pub use query::{CKQuery, SortDescriptor};
-pub use record::{CKRecord, RecordValue};
+pub use operation::*;
+pub use query::{CKLocationSortDescriptor, CKQuery, SortDescriptor};
+pub use record::{CKRecord, CKRecordKeyValueSetting, RecordValue};
 pub use record_id::CKRecordID;
 pub use reference_utility::{CKReference, CKReferenceAction};
 pub use server_change_token::CKServerChangeToken;
-pub use share::{
-    CKShare, CKShareParticipant, CKShareParticipantAcceptanceStatus,
-    CKShareParticipantPermission, CKShareParticipantRole,
-};
+pub use share::*;
 pub use subscription::{
     CKAnySubscription, CKDatabaseSubscription, CKQuerySubscription, CKRecordZoneSubscription,
     CKSubscription, CKSubscriptionType, QuerySubscriptionOptions,
 };
+pub use sync_engine::*;
 pub use user_identity::{CKPersonNameComponents, CKUserIdentity, CKUserIdentityLookupInfo};
 pub use zone::{
     CKRecordZone, CKRecordZoneCapabilities, CKRecordZoneEncryptionScope, CKRecordZoneID,
@@ -76,7 +74,8 @@ pub use zone::{
 /// Common imports.
 pub mod prelude {
     pub use crate::asset::CKAsset;
-    pub use crate::container::{AccountStatus, CKContainer};
+    pub use crate::constants::*;
+    pub use crate::container::{AccountStatus, CKApplicationPermissions, CKContainer};
     pub use crate::database::{CKDatabase, CKDatabaseScope};
     pub use crate::error::{
         CloudKitError, CloudKitErrorCode, CLOUDKIT_BRIDGE_ERROR_DOMAIN, CLOUDKIT_ERROR_DOMAIN,
@@ -86,27 +85,21 @@ pub mod prelude {
         CKFetchRecordZoneResult, CKFetchRecordsResult, CKFetchedQueryResults, CKQueryCursor,
         CKRecordResult,
     };
+    pub use crate::notification::*;
     pub use crate::notification_info::CKNotificationInfo;
-    pub use crate::operation::{
-        CKFetchDatabaseChangesOperation, CKFetchRecordZoneChangesConfiguration,
-        CKFetchRecordZoneChangesOperation, CKFetchRecordsOperation, CKModifyRecordsOperation,
-        CKQueryOperation, CKRecordDeleteResult, CKRecordSavePolicy, CKRecordSaveResult,
-        ModifyRecordsResult, QueryMatchResult, QueryOperationResult,
-    };
-    pub use crate::query::{CKQuery, SortDescriptor};
-    pub use crate::record::{CKRecord, RecordValue};
+    pub use crate::operation::*;
+    pub use crate::query::{CKLocationSortDescriptor, CKQuery, SortDescriptor};
+    pub use crate::record::{CKRecord, CKRecordKeyValueSetting, RecordValue};
     pub use crate::record_id::CKRecordID;
     pub use crate::reference_utility::{CKReference, CKReferenceAction};
     pub use crate::server_change_token::CKServerChangeToken;
-    pub use crate::share::{
-        CKShare, CKShareParticipant, CKShareParticipantAcceptanceStatus,
-        CKShareParticipantPermission, CKShareParticipantRole,
-    };
+    pub use crate::share::*;
     pub use crate::subscription::{
         CKAnySubscription, CKDatabaseSubscription, CKQuerySubscription,
         CKRecordZoneSubscription, CKSubscription, CKSubscriptionType,
         QuerySubscriptionOptions,
     };
+    pub use crate::sync_engine::*;
     pub use crate::user_identity::{
         CKPersonNameComponents, CKUserIdentity, CKUserIdentityLookupInfo,
     };
