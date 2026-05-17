@@ -129,6 +129,7 @@ impl CKModifyRecordsOperation {
         let operation_json = json_cstring(&payload, "modify-records operation")?;
         let mut out_json: *mut c_char = ptr::null_mut();
         let mut out_error: *mut c_char = ptr::null_mut();
+        // SAFETY: all pointer arguments are either null (via `opt_cstring_ptr`) or valid null-terminated C strings whose lifetimes cover the call. Any output pointers are valid mutable pointers; owned string outputs such as `out_json` and `out_error` start as null so the bridge can allocate and transfer ownership.
         let status = unsafe {
             ffi::ck_database_execute_modify_records_sync(
                 opt_cstring_ptr(&identifier),
@@ -139,8 +140,10 @@ impl CKModifyRecordsOperation {
             )
         };
         if status != ffi::status::OK {
+            // SAFETY: `out_error` is either null or a bridge-allocated C string; `error_from_status` consumes it.
             return Err(unsafe { error_from_status(status, out_error) });
         }
+        // SAFETY: `out_json` is either null or a bridge-allocated C string; `parse_json_ptr` frees it via `ck_string_free`.
         let payload = unsafe {
             parse_json_ptr::<CKModifyRecordsResultPayload>(out_json, "modify-records result")?
         };
@@ -242,6 +245,7 @@ impl CKQueryOperation {
         let operation_json = json_cstring(&payload, "query operation")?;
         let mut out_json: *mut c_char = ptr::null_mut();
         let mut out_error: *mut c_char = ptr::null_mut();
+        // SAFETY: all pointer arguments are either null (via `opt_cstring_ptr`) or valid null-terminated C strings whose lifetimes cover the call. Any output pointers are valid mutable pointers; owned string outputs such as `out_json` and `out_error` start as null so the bridge can allocate and transfer ownership.
         let status = unsafe {
             ffi::ck_database_execute_query_operation_sync(
                 opt_cstring_ptr(&identifier),
@@ -252,8 +256,10 @@ impl CKQueryOperation {
             )
         };
         if status != ffi::status::OK {
+            // SAFETY: `out_error` is either null or a bridge-allocated C string; `error_from_status` consumes it.
             return Err(unsafe { error_from_status(status, out_error) });
         }
+        // SAFETY: `out_json` is either null or a bridge-allocated C string; `parse_json_ptr` frees it via `ck_string_free`.
         let payload = unsafe {
             parse_json_ptr::<CKQueryOperationResultPayload>(out_json, "query operation result")?
         };
@@ -319,6 +325,7 @@ impl CKFetchRecordsOperation {
         let operation_json = json_cstring(&payload, "fetch-records operation")?;
         let mut out_json: *mut c_char = ptr::null_mut();
         let mut out_error: *mut c_char = ptr::null_mut();
+        // SAFETY: all pointer arguments are either null (via `opt_cstring_ptr`) or valid null-terminated C strings whose lifetimes cover the call. Any output pointers are valid mutable pointers; owned string outputs such as `out_json` and `out_error` start as null so the bridge can allocate and transfer ownership.
         let status = unsafe {
             ffi::ck_database_execute_fetch_records_sync(
                 opt_cstring_ptr(&identifier),
@@ -329,13 +336,19 @@ impl CKFetchRecordsOperation {
             )
         };
         if status != ffi::status::OK {
+            // SAFETY: `out_error` is either null or a bridge-allocated C string; `error_from_status` consumes it.
             return Err(unsafe { error_from_status(status, out_error) });
         }
+        // SAFETY: `out_json` is either null or a bridge-allocated C string; `parse_json_ptr` frees it via `ck_string_free`.
         let payload = unsafe {
             parse_json_ptr::<CKFetchRecordsResultPayload>(out_json, "fetch-records result")?
         };
         Ok(CKFetchRecordsResult {
-            records: payload.records.into_iter().map(CKRecord::from_payload).collect(),
+            records: payload
+                .records
+                .into_iter()
+                .map(CKRecord::from_payload)
+                .collect(),
             results: payload
                 .results
                 .into_iter()
@@ -389,7 +402,10 @@ impl CKFetchDatabaseChangesOperation {
         self
     }
 
-    pub fn execute_in(&self, database: &CKDatabase) -> Result<CKFetchDatabaseChangesResult, CloudKitError> {
+    pub fn execute_in(
+        &self,
+        database: &CKDatabase,
+    ) -> Result<CKFetchDatabaseChangesResult, CloudKitError> {
         let identifier = optional_cstring_from_str(
             database.container().container_identifier(),
             "container identifier",
@@ -405,6 +421,7 @@ impl CKFetchDatabaseChangesOperation {
         let operation_json = json_cstring(&payload, "fetch-database-changes operation")?;
         let mut out_json: *mut c_char = ptr::null_mut();
         let mut out_error: *mut c_char = ptr::null_mut();
+        // SAFETY: all pointer arguments are either null (via `opt_cstring_ptr`) or valid null-terminated C strings whose lifetimes cover the call. Any output pointers are valid mutable pointers; owned string outputs such as `out_json` and `out_error` start as null so the bridge can allocate and transfer ownership.
         let status = unsafe {
             ffi::ck_database_execute_fetch_database_changes_sync(
                 opt_cstring_ptr(&identifier),
@@ -415,8 +432,10 @@ impl CKFetchDatabaseChangesOperation {
             )
         };
         if status != ffi::status::OK {
+            // SAFETY: `out_error` is either null or a bridge-allocated C string; `error_from_status` consumes it.
             return Err(unsafe { error_from_status(status, out_error) });
         }
+        // SAFETY: `out_json` is either null or a bridge-allocated C string; `parse_json_ptr` frees it via `ck_string_free`.
         let payload = unsafe {
             parse_json_ptr::<crate::private::CKFetchDatabaseChangesResultPayload>(
                 out_json,
@@ -524,7 +543,10 @@ impl CKFetchRecordZoneChangesOperation {
         zone_id: CKRecordZoneID,
         configuration: CKFetchRecordZoneChangesConfiguration,
     ) -> Self {
-        if let Some(existing) = self.zones.iter_mut().find(|(existing_zone_id, _)| *existing_zone_id == zone_id)
+        if let Some(existing) = self
+            .zones
+            .iter_mut()
+            .find(|(existing_zone_id, _)| *existing_zone_id == zone_id)
         {
             existing.1 = configuration;
         } else {
@@ -550,16 +572,19 @@ impl CKFetchRecordZoneChangesOperation {
             zones: self
                 .zones
                 .iter()
-                .map(|(zone_id, configuration)| CKFetchRecordZoneChangesConfigurationEntryPayload {
-                    zone_id: zone_id.to_payload(),
-                    configuration: configuration.to_payload(),
-                })
+                .map(
+                    |(zone_id, configuration)| CKFetchRecordZoneChangesConfigurationEntryPayload {
+                        zone_id: zone_id.to_payload(),
+                        configuration: configuration.to_payload(),
+                    },
+                )
                 .collect(),
             fetch_all_changes: self.fetch_all_changes,
         };
         let operation_json = json_cstring(&payload, "fetch-record-zone-changes operation")?;
         let mut out_json: *mut c_char = ptr::null_mut();
         let mut out_error: *mut c_char = ptr::null_mut();
+        // SAFETY: all pointer arguments are either null (via `opt_cstring_ptr`) or valid null-terminated C strings whose lifetimes cover the call. Any output pointers are valid mutable pointers; owned string outputs such as `out_json` and `out_error` start as null so the bridge can allocate and transfer ownership.
         let status = unsafe {
             ffi::ck_database_execute_fetch_record_zone_changes_sync(
                 opt_cstring_ptr(&identifier),
@@ -570,8 +595,10 @@ impl CKFetchRecordZoneChangesOperation {
             )
         };
         if status != ffi::status::OK {
+            // SAFETY: `out_error` is either null or a bridge-allocated C string; `error_from_status` consumes it.
             return Err(unsafe { error_from_status(status, out_error) });
         }
+        // SAFETY: `out_json` is either null or a bridge-allocated C string; `parse_json_ptr` frees it via `ck_string_free`.
         let payload = unsafe {
             parse_json_ptr::<CKFetchRecordZoneChangesResultPayload>(
                 out_json,

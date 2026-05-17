@@ -8,8 +8,8 @@ use crate::database::CKDatabase;
 use crate::error::CloudKitError;
 use crate::ffi;
 use crate::private::{
-    cstring_from_str, error_from_status, json_cstring, opt_cstring_ptr,
-    optional_cstring_from_str, parse_json_ptr, CKShareMetadataPayload,
+    cstring_from_str, error_from_status, json_cstring, opt_cstring_ptr, optional_cstring_from_str,
+    parse_json_ptr, CKShareMetadataPayload,
 };
 use crate::record::{CKRecordZone, CKRecordZoneID};
 use crate::share::{CKShare, CKShareMetadata, CKShareParticipant};
@@ -19,7 +19,10 @@ use crate::user_identity::CKUserIdentityLookupInfo;
 static NEXT_OPERATION_IDENTIFIER: AtomicU64 = AtomicU64::new(1);
 
 fn next_identifier(prefix: &str) -> String {
-    format!("{prefix}-{}", NEXT_OPERATION_IDENTIFIER.fetch_add(1, Ordering::Relaxed))
+    format!(
+        "{prefix}-{}",
+        NEXT_OPERATION_IDENTIFIER.fetch_add(1, Ordering::Relaxed)
+    )
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -299,10 +302,12 @@ impl CKDatabaseOperation {
     }
 
     pub fn with_database(mut self, database: CKDatabase) -> Self {
-        self.operation = self
-            .operation
-            .clone()
-            .with_configuration(self.operation.configuration().clone().with_container(database.container().clone()));
+        self.operation = self.operation.clone().with_configuration(
+            self.operation
+                .configuration()
+                .clone()
+                .with_container(database.container().clone()),
+        );
         self.database = Some(database);
         self
     }
@@ -362,7 +367,10 @@ impl CKFetchRecordZonesOperation {
         self
     }
 
-    pub fn execute_in(&self, database: &CKDatabase) -> Result<CKFetchRecordZonesResult, CloudKitError> {
+    pub fn execute_in(
+        &self,
+        database: &CKDatabase,
+    ) -> Result<CKFetchRecordZonesResult, CloudKitError> {
         let mut record_zones = Vec::new();
         let mut results = Vec::new();
         if let Some(zone_ids) = &self.record_zone_ids {
@@ -459,7 +467,10 @@ impl CKModifyRecordZonesOperation {
         self
     }
 
-    pub fn execute_in(&self, database: &CKDatabase) -> Result<ModifyRecordZonesResult, CloudKitError> {
+    pub fn execute_in(
+        &self,
+        database: &CKDatabase,
+    ) -> Result<ModifyRecordZonesResult, CloudKitError> {
         let mut saved_record_zones = Vec::new();
         let mut deleted_record_zone_ids = Vec::new();
         let mut save_results = Vec::new();
@@ -557,7 +568,10 @@ impl CKFetchSubscriptionsOperation {
         self
     }
 
-    pub fn execute_in(&self, database: &CKDatabase) -> Result<CKFetchSubscriptionsResult, CloudKitError> {
+    pub fn execute_in(
+        &self,
+        database: &CKDatabase,
+    ) -> Result<CKFetchSubscriptionsResult, CloudKitError> {
         let mut subscriptions = Vec::new();
         let mut results = Vec::new();
         if let Some(subscription_ids) = &self.subscription_ids {
@@ -655,7 +669,10 @@ impl CKModifySubscriptionsOperation {
         self
     }
 
-    pub fn execute_in(&self, database: &CKDatabase) -> Result<ModifySubscriptionsResult, CloudKitError> {
+    pub fn execute_in(
+        &self,
+        database: &CKDatabase,
+    ) -> Result<ModifySubscriptionsResult, CloudKitError> {
         let mut saved_subscriptions = Vec::new();
         let mut deleted_subscription_ids = Vec::new();
         let mut save_results = Vec::new();
@@ -751,6 +768,7 @@ impl CKFetchWebAuthTokenOperation {
         )?;
         let mut out_json: *mut c_char = ptr::null_mut();
         let mut out_error: *mut c_char = ptr::null_mut();
+        // SAFETY: all pointer arguments are either null (via `opt_cstring_ptr`) or valid null-terminated C strings whose lifetimes cover the call. Any output pointers are valid mutable pointers; owned string outputs such as `out_json` and `out_error` start as null so the bridge can allocate and transfer ownership.
         let status = unsafe {
             ffi::ck_database_execute_fetch_web_auth_token_sync(
                 opt_cstring_ptr(&identifier),
@@ -761,8 +779,10 @@ impl CKFetchWebAuthTokenOperation {
             )
         };
         if status != ffi::status::OK {
+            // SAFETY: `out_error` is either null or a bridge-allocated C string; `error_from_status` consumes it.
             return Err(unsafe { error_from_status(status, out_error) });
         }
+        // SAFETY: `out_json` is either null or a bridge-allocated C string; `parse_json_ptr` frees it via `ck_string_free`.
         unsafe { parse_json_ptr::<String>(out_json, "web auth token") }
     }
 }
@@ -822,7 +842,10 @@ impl CKFetchShareParticipantsOperation {
         self
     }
 
-    pub fn execute_in(&self, container: &CKContainer) -> Result<CKFetchShareParticipantsResult, CloudKitError> {
+    pub fn execute_in(
+        &self,
+        container: &CKContainer,
+    ) -> Result<CKFetchShareParticipantsResult, CloudKitError> {
         let mut participants = Vec::new();
         let mut results = Vec::new();
         for lookup_info in &self.user_identity_lookup_infos {
@@ -924,11 +947,12 @@ impl CKFetchShareMetadataOperation {
         self
     }
 
-    pub fn execute_in(&self, container: &CKContainer) -> Result<CKFetchShareMetadataResult, CloudKitError> {
-        let identifier = optional_cstring_from_str(
-            container.container_identifier(),
-            "container identifier",
-        )?;
+    pub fn execute_in(
+        &self,
+        container: &CKContainer,
+    ) -> Result<CKFetchShareMetadataResult, CloudKitError> {
+        let identifier =
+            optional_cstring_from_str(container.container_identifier(), "container identifier")?;
         let desired_keys_json = self
             .root_record_desired_keys
             .as_ref()
@@ -941,6 +965,7 @@ impl CKFetchShareMetadataOperation {
             let share_url = cstring_from_str(share_url, "share URL")?;
             let mut out_json: *mut c_char = ptr::null_mut();
             let mut out_error: *mut c_char = ptr::null_mut();
+            // SAFETY: all pointer arguments are either null (via `opt_cstring_ptr`) or valid null-terminated C strings whose lifetimes cover the call. Any output pointers are valid mutable pointers; owned string outputs such as `out_json` and `out_error` start as null so the bridge can allocate and transfer ownership.
             let status = unsafe {
                 ffi::ck_container_fetch_share_metadata_sync(
                     opt_cstring_ptr(&identifier),
@@ -952,6 +977,7 @@ impl CKFetchShareMetadataOperation {
                 )
             };
             if status == ffi::status::OK {
+                // SAFETY: `out_json` is either null or a bridge-allocated C string; `parse_json_ptr` frees it via `ck_string_free`.
                 let payload = unsafe {
                     parse_json_ptr::<CKShareMetadataPayload>(out_json, "share metadata")?
                 };
@@ -966,6 +992,7 @@ impl CKFetchShareMetadataOperation {
                 results.push(CKShareMetadataFetchResult {
                     share_url: share_url.as_c_str().to_string_lossy().into_owned(),
                     share_metadata: None,
+                    // SAFETY: `out_error` is either null or a bridge-allocated C string; `error_from_status` consumes it.
                     error: Some(unsafe { error_from_status(status, out_error) }),
                 });
             }
@@ -1031,17 +1058,19 @@ impl CKAcceptSharesOperation {
         self
     }
 
-    pub fn execute_in(&self, container: &CKContainer) -> Result<CKAcceptSharesResult, CloudKitError> {
-        let identifier = optional_cstring_from_str(
-            container.container_identifier(),
-            "container identifier",
-        )?;
+    pub fn execute_in(
+        &self,
+        container: &CKContainer,
+    ) -> Result<CKAcceptSharesResult, CloudKitError> {
+        let identifier =
+            optional_cstring_from_str(container.container_identifier(), "container identifier")?;
         let mut accepted_shares = Vec::new();
         let mut results = Vec::new();
         for share_metadata in &self.share_metadatas {
             let share_metadata_json = json_cstring(&share_metadata.to_payload(), "share metadata")?;
             let mut out_json: *mut c_char = ptr::null_mut();
             let mut out_error: *mut c_char = ptr::null_mut();
+            // SAFETY: all pointer arguments are either null (via `opt_cstring_ptr`) or valid null-terminated C strings whose lifetimes cover the call. Any output pointers are valid mutable pointers; owned string outputs such as `out_json` and `out_error` start as null so the bridge can allocate and transfer ownership.
             let status = unsafe {
                 ffi::ck_container_accept_share_metadata_sync(
                     opt_cstring_ptr(&identifier),
@@ -1051,6 +1080,7 @@ impl CKAcceptSharesOperation {
                 )
             };
             if status == ffi::status::OK {
+                // SAFETY: `out_json` is either null or a bridge-allocated C string; `parse_json_ptr` frees it via `ck_string_free`.
                 let payload = unsafe { parse_json_ptr(out_json, "accepted share")? };
                 let accepted_share = CKShare::from_payload(payload);
                 accepted_shares.push(accepted_share.clone());
@@ -1063,6 +1093,7 @@ impl CKAcceptSharesOperation {
                 results.push(CKAcceptShareResult {
                     share_metadata: share_metadata.clone(),
                     accepted_share: None,
+                    // SAFETY: `out_error` is either null or a bridge-allocated C string; `error_from_status` consumes it.
                     error: Some(unsafe { error_from_status(status, out_error) }),
                 });
             }
@@ -1125,15 +1156,17 @@ impl CKShareRequestAccessOperation {
         self
     }
 
-    pub fn execute_in(&self, container: &CKContainer) -> Result<CKShareRequestAccessResult, CloudKitError> {
-        let identifier = optional_cstring_from_str(
-            container.container_identifier(),
-            "container identifier",
-        )?;
+    pub fn execute_in(
+        &self,
+        container: &CKContainer,
+    ) -> Result<CKShareRequestAccessResult, CloudKitError> {
+        let identifier =
+            optional_cstring_from_str(container.container_identifier(), "container identifier")?;
         let mut results = Vec::new();
         for share_url in &self.share_urls {
             let share_url = cstring_from_str(share_url, "share URL")?;
             let mut out_error: *mut c_char = ptr::null_mut();
+            // SAFETY: all pointer arguments are either null (via `opt_cstring_ptr`) or valid null-terminated C strings whose lifetimes cover the call. Any output pointers are valid mutable pointers; owned string outputs such as `out_json` and `out_error` start as null so the bridge can allocate and transfer ownership.
             let status = unsafe {
                 ffi::ck_container_request_share_access_sync(
                     opt_cstring_ptr(&identifier),
@@ -1146,6 +1179,7 @@ impl CKShareRequestAccessOperation {
                 error: if status == ffi::status::OK {
                     None
                 } else {
+                    // SAFETY: `out_error` is either null or a bridge-allocated C string; `error_from_status` consumes it.
                     Some(unsafe { error_from_status(status, out_error) })
                 },
             });

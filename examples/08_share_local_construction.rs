@@ -6,7 +6,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let share = CKShare::new_root_record(&root)?;
 
-    println!("share_record_type={} participants={}", share.share_record().record_type(), share.participants().len());
+    println!(
+        "share_record_type={} participants={}",
+        share.share_record().record_type(),
+        share.participants().len()
+    );
     println!("✅ share area OK");
     Ok(())
 }

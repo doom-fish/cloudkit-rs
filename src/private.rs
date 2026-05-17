@@ -498,6 +498,8 @@ pub(crate) fn opt_cstring_ptr(value: &Option<CString>) -> *const c_char {
         .map_or(core::ptr::null(), |value| value.as_c_str().as_ptr())
 }
 
+/// # Safety
+/// `ptr` must be either null or a valid pointer to a bridge-allocated null-terminated C string; this function frees the string via `ck_string_free`.
 pub(crate) unsafe fn take_string(ptr: *mut c_char) -> Option<String> {
     if ptr.is_null() {
         return None;
@@ -519,6 +521,8 @@ pub(crate) fn parse_json_str<T: DeserializeOwned>(
     })
 }
 
+/// # Safety
+/// `ptr` must be either null or a valid pointer to a bridge-allocated null-terminated C string; this function frees the string via `ck_string_free`.
 pub(crate) unsafe fn parse_json_ptr<T: DeserializeOwned>(
     ptr: *mut c_char,
     context: &str,
@@ -528,6 +532,8 @@ pub(crate) unsafe fn parse_json_ptr<T: DeserializeOwned>(
     parse_json_str(&json, context)
 }
 
+/// # Safety
+/// `ptr` must be either null or a valid pointer to a bridge-allocated null-terminated C string; this function frees the string via `ck_string_free`.
 pub(crate) unsafe fn parse_error_ptr(ptr: *mut c_char) -> CloudKitError {
     if ptr.is_null() {
         return CloudKitError::bridge(-2, "CloudKit bridge returned an error without payload");
@@ -537,6 +543,8 @@ pub(crate) unsafe fn parse_error_ptr(ptr: *mut c_char) -> CloudKitError {
     parse_error_json_str(&json)
 }
 
+/// # Safety
+/// `ptr` must be null or point to a valid null-terminated C string for the duration of this call; this function borrows the string and does not free it.
 pub(crate) unsafe fn parse_borrowed_error_ptr(ptr: *const c_char) -> CloudKitError {
     if ptr.is_null() {
         return CloudKitError::bridge(-2, "CloudKit bridge returned an error without payload");
@@ -555,6 +563,8 @@ pub(crate) fn parse_error_json_str(json: &str) -> CloudKitError {
     }
 }
 
+/// # Safety
+/// `err_msg` must be either null or a valid pointer to a bridge-allocated null-terminated C string; when non-null it is consumed via `parse_error_ptr`.
 pub(crate) unsafe fn error_from_status(status: i32, err_msg: *mut c_char) -> CloudKitError {
     if !err_msg.is_null() {
         return parse_error_ptr(err_msg);

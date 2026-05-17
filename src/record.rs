@@ -272,10 +272,12 @@ impl RecordValue {
                 }),
             )),
             RecordValueKind::Reference => Self::Reference(CKReference::from_payload(
-                payload.reference_value.unwrap_or_else(|| CKReferencePayload {
-                    record_id: CKRecordID::new(String::new()).to_payload(),
-                    action: CKReferenceAction::None.to_raw(),
-                }),
+                payload
+                    .reference_value
+                    .unwrap_or_else(|| CKReferencePayload {
+                        record_id: CKRecordID::new(String::new()).to_payload(),
+                        action: CKReferenceAction::None.to_raw(),
+                    }),
             )),
             RecordValueKind::Array => Self::Array(
                 payload
@@ -465,7 +467,9 @@ impl CKRecordZone {
             zone_id: self.zone_id.to_payload(),
             capabilities: self.capabilities.bits(),
             share: self.share.as_ref().map(CKReference::to_payload),
-            encryption_scope: self.encryption_scope.map(CKRecordZoneEncryptionScope::to_raw),
+            encryption_scope: self
+                .encryption_scope
+                .map(CKRecordZoneEncryptionScope::to_raw),
         }
     }
 }

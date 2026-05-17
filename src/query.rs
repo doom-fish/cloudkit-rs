@@ -38,11 +38,7 @@ pub struct CKLocationSortDescriptor {
 }
 
 impl CKLocationSortDescriptor {
-    pub fn new(
-        key: impl Into<String>,
-        relative_latitude: f64,
-        relative_longitude: f64,
-    ) -> Self {
+    pub fn new(key: impl Into<String>, relative_latitude: f64, relative_longitude: f64) -> Self {
         Self {
             key: key.into(),
             relative_latitude,

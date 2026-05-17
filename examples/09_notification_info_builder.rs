@@ -11,6 +11,11 @@ fn main() {
         .with_category("cloudkit-demo")
         .with_collapse_id_key("collapseID");
 
-    println!("title={:?} subtitle={:?} mutable={}", info.title(), info.subtitle(), info.should_send_mutable_content());
+    println!(
+        "title={:?} subtitle={:?} mutable={}",
+        info.title(),
+        info.subtitle(),
+        info.should_send_mutable_content()
+    );
     println!("✅ notification-info area OK");
 }

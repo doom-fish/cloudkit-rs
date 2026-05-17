@@ -14,10 +14,18 @@ fn main() {
     )
     .with_notification_info(notification.clone());
 
-    let zone = CKRecordZoneSubscription::new(CKRecordZoneID::new("Tasks", "__defaultOwner__"), "task-zone-sub")
-        .with_notification_info(notification.clone());
+    let zone = CKRecordZoneSubscription::new(
+        CKRecordZoneID::new("Tasks", "__defaultOwner__"),
+        "task-zone-sub",
+    )
+    .with_notification_info(notification.clone());
     let database = CKDatabaseSubscription::new("task-db-sub").with_notification_info(notification);
 
-    println!("query={} zone={} database={}", query.base().subscription_id(), zone.base().subscription_id(), database.base().subscription_id());
+    println!(
+        "query={} zone={} database={}",
+        query.base().subscription_id(),
+        zone.base().subscription_id(),
+        database.base().subscription_id()
+    );
     println!("✅ subscription area OK");
 }

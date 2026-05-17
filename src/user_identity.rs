@@ -229,8 +229,12 @@ impl CKUserIdentity {
         Self {
             archived_data: payload.archived_data,
             user_record_id: payload.user_record_id.map(CKRecordID::from_payload),
-            lookup_info: payload.lookup_info.map(CKUserIdentityLookupInfo::from_payload),
-            name_components: payload.name_components.map(CKPersonNameComponents::from_payload),
+            lookup_info: payload
+                .lookup_info
+                .map(CKUserIdentityLookupInfo::from_payload),
+            name_components: payload
+                .name_components
+                .map(CKPersonNameComponents::from_payload),
             hasi_cloud_account: payload.hasi_cloud_account,
             contact_identifiers: payload.contact_identifiers,
         }

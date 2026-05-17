@@ -9,6 +9,7 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use doom_fish_utils::completion::{error_from_cstr, AsyncCompletion, AsyncCompletionFuture};
+use doom_fish_utils::panic_safe::catch_user_panic;
 use serde::de::DeserializeOwned;
 
 use crate::container::{
@@ -50,6 +51,7 @@ fn bridge_error_json(code: i64, message: impl Into<String>) -> String {
 
 fn ready_error_future<T>(error: CloudKitError) -> AsyncCompletionFuture<T> {
     let (future, context) = AsyncCompletion::create();
+    // SAFETY: `context` is a valid `SyncCompletionPtr` from `AsyncCompletion::create()`, not yet consumed.
     unsafe { AsyncCompletion::<T>::complete_err(context, encode_async_error(error)) };
     future
 }
@@ -130,31 +132,41 @@ fn modify_records_result_from_payload(
 }
 
 extern "C" fn status_callback(refcon: *mut c_void, status_raw: i32, error_json: *const c_char) {
-    if error_json.is_null() {
-        unsafe { AsyncCompletion::<i32>::complete_ok(refcon, status_raw) };
-    } else {
-        let error = unsafe { error_from_cstr(error_json.cast()) };
-        unsafe { AsyncCompletion::<i32>::complete_err(refcon, error) };
-    }
+    catch_user_panic("cloudkit::status_callback", || {
+        if error_json.is_null() {
+            // SAFETY: `refcon` is a valid `SyncCompletionPtr` from `AsyncCompletion::create()`, not yet consumed.
+            unsafe { AsyncCompletion::<i32>::complete_ok(refcon, status_raw) };
+        } else {
+            let error = unsafe { error_from_cstr(error_json.cast()) };
+            // SAFETY: `refcon` is a valid `SyncCompletionPtr` from `AsyncCompletion::create()`, not yet consumed.
+            unsafe { AsyncCompletion::<i32>::complete_err(refcon, error) };
+        }
+    });
 }
 
 extern "C" fn json_callback(refcon: *mut c_void, json: *const c_char, error_json: *const c_char) {
-    if !error_json.is_null() {
-        let error = unsafe { error_from_cstr(error_json.cast()) };
-        unsafe { AsyncCompletion::<String>::complete_err(refcon, error) };
-    } else if !json.is_null() {
-        let payload = unsafe { error_from_cstr(json.cast()) };
-        unsafe { AsyncCompletion::<String>::complete_ok(refcon, payload) };
-    } else {
-        unsafe {
-            AsyncCompletion::<String>::complete_err(
-                refcon,
-                bridge_error_json(-2, "CloudKit bridge returned an empty JSON payload"),
-            );
-        };
-    }
+    catch_user_panic("cloudkit::json_callback", || {
+        if !error_json.is_null() {
+            let error = unsafe { error_from_cstr(error_json.cast()) };
+            // SAFETY: `refcon` is a valid `SyncCompletionPtr` from `AsyncCompletion::create()`, not yet consumed.
+            unsafe { AsyncCompletion::<String>::complete_err(refcon, error) };
+        } else if !json.is_null() {
+            let json_str = unsafe { error_from_cstr(json.cast()) };
+            // SAFETY: `refcon` is a valid `SyncCompletionPtr` from `AsyncCompletion::create()`, not yet consumed.
+            unsafe { AsyncCompletion::<String>::complete_ok(refcon, json_str) };
+        } else {
+            // SAFETY: `refcon` is a valid `SyncCompletionPtr` from `AsyncCompletion::create()`, not yet consumed.
+            unsafe {
+                AsyncCompletion::<String>::complete_err(
+                    refcon,
+                    bridge_error_json(-2, "CloudKit bridge returned an empty JSON payload"),
+                );
+            };
+        }
+    });
 }
 
+/// Future resolving to the iCloud account status.
 pub struct AccountStatusFuture {
     inner: AsyncCompletionFuture<i32>,
 }
@@ -167,6 +179,7 @@ impl Future for AccountStatusFuture {
     }
 }
 
+/// Future resolving to the current user's `CloudKit` record ID.
 pub struct FetchUserRecordIdFuture {
     inner: AsyncCompletionFuture<String>,
 }
@@ -184,6 +197,7 @@ impl Future for FetchUserRecordIdFuture {
     }
 }
 
+/// Future resolving to the application permission status after prompting the user.
 pub struct RequestApplicationPermissionFuture {
     inner: AsyncCompletionFuture<i32>,
 }
@@ -196,6 +210,7 @@ impl Future for RequestApplicationPermissionFuture {
     }
 }
 
+/// Future resolving to a discovered user identity.
 pub struct DiscoverUserIdentityFuture {
     inner: AsyncCompletionFuture<String>,
 }
@@ -213,6 +228,7 @@ impl Future for DiscoverUserIdentityFuture {
     }
 }
 
+/// Future resolving to query result records.
 pub struct PerformQueryFuture {
     inner: AsyncCompletionFuture<String>,
 }
@@ -225,6 +241,7 @@ impl Future for PerformQueryFuture {
     }
 }
 
+/// Future resolving to a single fetched record.
 pub struct FetchRecordFuture {
     inner: AsyncCompletionFuture<String>,
 }
@@ -242,6 +259,7 @@ impl Future for FetchRecordFuture {
     }
 }
 
+/// Future resolving to the result of a modify-records operation.
 pub struct ModifyRecordsFuture {
     inner: AsyncCompletionFuture<String>,
 }
@@ -259,6 +277,7 @@ impl Future for ModifyRecordsFuture {
     }
 }
 
+/// Future resolving to the record ID of a deleted record.
 pub struct DeleteRecordFuture {
     inner: AsyncCompletionFuture<String>,
 }
@@ -276,6 +295,7 @@ impl Future for DeleteRecordFuture {
     }
 }
 
+/// Future resolving to paged query results with an optional continuation cursor.
 pub struct FetchQueryResultsFuture {
     inner: AsyncCompletionFuture<String>,
 }
@@ -293,6 +313,7 @@ impl Future for FetchQueryResultsFuture {
     }
 }
 
+/// Future resolving to all database-change records since a server change token.
 pub struct FetchDatabaseChangesFuture {
     inner: AsyncCompletionFuture<String>,
 }
@@ -310,6 +331,7 @@ impl Future for FetchDatabaseChangesFuture {
     }
 }
 
+/// Future resolving to all record zones in a database.
 pub struct FetchAllRecordZonesFuture {
     inner: AsyncCompletionFuture<String>,
 }
@@ -339,6 +361,7 @@ impl CKContainer {
                 }
             };
         let (future, context) = AsyncCompletion::create();
+        // SAFETY: all C-string arguments are valid for the duration of the call; `context` is a valid `SyncCompletionPtr` consumed exactly once by the callback.
         unsafe {
             ffi::ck_container_account_status_async(
                 opt_cstring_ptr(&identifier),
@@ -360,6 +383,7 @@ impl CKContainer {
                 }
             };
         let (future, context) = AsyncCompletion::create();
+        // SAFETY: all C-string arguments are valid for the duration of the call; `context` is a valid `SyncCompletionPtr` consumed exactly once by the callback.
         unsafe {
             ffi::ck_container_fetch_user_record_id_async(
                 opt_cstring_ptr(&identifier),
@@ -392,6 +416,7 @@ impl CKContainer {
             };
         };
         let (future, context) = AsyncCompletion::create();
+        // SAFETY: all C-string arguments are valid for the duration of the call; `context` is a valid `SyncCompletionPtr` consumed exactly once by the callback.
         unsafe {
             ffi::ck_container_request_application_permission_async(
                 opt_cstring_ptr(&identifier),
@@ -426,6 +451,7 @@ impl CKContainer {
             }
         };
         let (future, context) = AsyncCompletion::create();
+        // SAFETY: all C-string arguments are valid for the duration of the call; `context` is a valid `SyncCompletionPtr` consumed exactly once by the callback.
         unsafe {
             ffi::ck_container_discover_user_identity_async(
                 opt_cstring_ptr(&identifier),
@@ -504,6 +530,7 @@ impl CKDatabase {
             }
         };
         let (future, context) = AsyncCompletion::create();
+        // SAFETY: all C-string arguments are valid for the duration of the call; `context` is a valid `SyncCompletionPtr` consumed exactly once by the callback.
         unsafe {
             ffi::ck_database_perform_query_async(
                 opt_cstring_ptr(&identifier),
@@ -538,6 +565,7 @@ impl CKDatabase {
             }
         };
         let (future, context) = AsyncCompletion::create();
+        // SAFETY: all C-string arguments are valid for the duration of the call; `context` is a valid `SyncCompletionPtr` consumed exactly once by the callback.
         unsafe {
             ffi::ck_database_fetch_record_async(
                 opt_cstring_ptr(&identifier),
@@ -571,6 +599,7 @@ impl CKDatabase {
             }
         };
         let (future, context) = AsyncCompletion::create();
+        // SAFETY: all C-string arguments are valid for the duration of the call; `context` is a valid `SyncCompletionPtr` consumed exactly once by the callback.
         unsafe {
             ffi::ck_database_delete_record_async(
                 opt_cstring_ptr(&identifier),
@@ -643,6 +672,7 @@ impl CKDatabase {
             };
         };
         let (future, context) = AsyncCompletion::create();
+        // SAFETY: all C-string arguments are valid for the duration of the call; `context` is a valid `SyncCompletionPtr` consumed exactly once by the callback.
         unsafe {
             ffi::ck_database_fetch_query_results_async(
                 opt_cstring_ptr(&identifier),
@@ -671,6 +701,7 @@ impl CKDatabase {
             }
         };
         let (future, context) = AsyncCompletion::create();
+        // SAFETY: all C-string arguments are valid for the duration of the call; `context` is a valid `SyncCompletionPtr` consumed exactly once by the callback.
         unsafe {
             ffi::ck_database_fetch_all_record_zones_async(
                 opt_cstring_ptr(&identifier),
@@ -719,6 +750,7 @@ impl CKModifyRecordsOperation {
             }
         };
         let (future, context) = AsyncCompletion::create();
+        // SAFETY: all C-string arguments are valid for the duration of the call; `context` is a valid `SyncCompletionPtr` consumed exactly once by the callback.
         unsafe {
             ffi::ck_database_modify_records_async(
                 opt_cstring_ptr(&identifier),
@@ -761,6 +793,7 @@ impl CKFetchDatabaseChangesOperation {
             }
         };
         let (future, context) = AsyncCompletion::create();
+        // SAFETY: all C-string arguments are valid for the duration of the call; `context` is a valid `SyncCompletionPtr` consumed exactly once by the callback.
         unsafe {
             ffi::ck_database_fetch_changes_async(
                 opt_cstring_ptr(&identifier),

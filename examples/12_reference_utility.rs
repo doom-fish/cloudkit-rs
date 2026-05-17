@@ -8,7 +8,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     child.set_parent_reference_from_record_id(parent_id);
     child.set_object("parentRef", reference);
 
-    println!("parent={:?} keys={:?}", child.parent().map(|reference| reference.record_id().record_name()), child.all_keys());
+    println!(
+        "parent={:?} keys={:?}",
+        child
+            .parent()
+            .map(|reference| reference.record_id().record_name()),
+        child.all_keys()
+    );
     println!("✅ reference-utility area OK");
     Ok(())
 }

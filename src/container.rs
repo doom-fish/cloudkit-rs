@@ -11,6 +11,7 @@ use crate::private::{
 use crate::record::CKRecordID;
 use crate::share::CKShareParticipant;
 use crate::user_identity::{CKUserIdentity, CKUserIdentityLookupInfo};
+use doom_fish_utils::panic_safe::catch_user_panic;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
@@ -166,6 +167,7 @@ impl CKContainer {
             optional_cstring_from_str(self.identifier.as_deref(), "container identifier")?;
         let mut out_status = 0_i32;
         let mut out_error: *mut c_char = ptr::null_mut();
+        // SAFETY: all pointer arguments are either null (via `opt_cstring_ptr`) or valid null-terminated C strings whose lifetimes cover the call. Any output pointers are valid mutable pointers; owned string outputs such as `out_json` and `out_error` start as null so the bridge can allocate and transfer ownership.
         let status = unsafe {
             ffi::ck_container_account_status_sync(
                 opt_cstring_ptr(&identifier),
@@ -174,6 +176,7 @@ impl CKContainer {
             )
         };
         if status != ffi::status::OK {
+            // SAFETY: `out_error` is either null or a bridge-allocated C string; `error_from_status` consumes it.
             return Err(unsafe { error_from_status(status, out_error) });
         }
         Ok(AccountStatus::from_raw(out_status))
@@ -204,6 +207,7 @@ impl CKContainer {
             optional_cstring_from_str(self.identifier.as_deref(), "container identifier")?;
         let mut out_json: *mut c_char = ptr::null_mut();
         let mut out_error: *mut c_char = ptr::null_mut();
+        // SAFETY: all pointer arguments are either null (via `opt_cstring_ptr`) or valid null-terminated C strings whose lifetimes cover the call. Any output pointers are valid mutable pointers; owned string outputs such as `out_json` and `out_error` start as null so the bridge can allocate and transfer ownership.
         let status = unsafe {
             ffi::ck_container_fetch_user_record_id_sync(
                 opt_cstring_ptr(&identifier),
@@ -212,8 +216,10 @@ impl CKContainer {
             )
         };
         if status != ffi::status::OK {
+            // SAFETY: `out_error` is either null or a bridge-allocated C string; `error_from_status` consumes it.
             return Err(unsafe { error_from_status(status, out_error) });
         }
+        // SAFETY: `out_json` is either null or a bridge-allocated C string; `parse_json_ptr` frees it via `ck_string_free`.
         let record_id = unsafe {
             parse_json_ptr::<crate::private::CKRecordIDPayload>(out_json, "user record ID")?
         };
@@ -249,6 +255,7 @@ impl CKContainer {
         let lookup_json = json_cstring(&lookup_info.to_payload(), "user identity lookup info")?;
         let mut out_json: *mut c_char = ptr::null_mut();
         let mut out_error: *mut c_char = ptr::null_mut();
+        // SAFETY: all pointer arguments are either null (via `opt_cstring_ptr`) or valid null-terminated C strings whose lifetimes cover the call. Any output pointers are valid mutable pointers; owned string outputs such as `out_json` and `out_error` start as null so the bridge can allocate and transfer ownership.
         let status = unsafe {
             ffi::ck_container_discover_user_identity_sync(
                 opt_cstring_ptr(&identifier),
@@ -258,8 +265,10 @@ impl CKContainer {
             )
         };
         if status != ffi::status::OK {
+            // SAFETY: `out_error` is either null or a bridge-allocated C string; `error_from_status` consumes it.
             return Err(unsafe { error_from_status(status, out_error) });
         }
+        // SAFETY: `out_json` is either null or a bridge-allocated C string; `parse_json_ptr` frees it via `ck_string_free`.
         let payload = unsafe {
             parse_json_ptr::<crate::private::CKUserIdentityPayload>(out_json, "user identity")?
         };
@@ -298,6 +307,7 @@ impl CKContainer {
         let lookup_json = json_cstring(&lookup_info.to_payload(), "share participant lookup info")?;
         let mut out_json: *mut c_char = ptr::null_mut();
         let mut out_error: *mut c_char = ptr::null_mut();
+        // SAFETY: all pointer arguments are either null (via `opt_cstring_ptr`) or valid null-terminated C strings whose lifetimes cover the call. Any output pointers are valid mutable pointers; owned string outputs such as `out_json` and `out_error` start as null so the bridge can allocate and transfer ownership.
         let status = unsafe {
             ffi::ck_container_fetch_share_participant_sync(
                 opt_cstring_ptr(&identifier),
@@ -307,8 +317,10 @@ impl CKContainer {
             )
         };
         if status != ffi::status::OK {
+            // SAFETY: `out_error` is either null or a bridge-allocated C string; `error_from_status` consumes it.
             return Err(unsafe { error_from_status(status, out_error) });
         }
+        // SAFETY: `out_json` is either null or a bridge-allocated C string; `parse_json_ptr` frees it via `ck_string_free`.
         let payload = unsafe {
             parse_json_ptr::<crate::private::CKShareParticipantPayload>(
                 out_json,
@@ -350,13 +362,18 @@ unsafe extern "C" fn account_status_trampoline(
     status_raw: i32,
     error_json: *const c_char,
 ) {
-    let callback: Box<AccountStatusCallback> = Box::from_raw(refcon.cast());
-    let result = if error_json.is_null() {
-        Ok(AccountStatus::from_raw(status_raw))
-    } else {
-        Err(parse_borrowed_error_ptr(error_json))
-    };
-    callback(result);
+    // SAFETY: `refcon` was set via `box_closure(Box::new(callback))` and this
+    // trampoline fires exactly once.
+    catch_user_panic("cloudkit::account_status_trampoline", || {
+        let callback: Box<AccountStatusCallback> = unsafe { Box::from_raw(refcon.cast()) };
+        let result = if error_json.is_null() {
+            Ok(AccountStatus::from_raw(status_raw))
+        } else {
+            // SAFETY: `error_json` is non-null and points to a bridge-owned null-terminated string.
+            Err(unsafe { parse_borrowed_error_ptr(error_json) })
+        };
+        callback(result);
+    });
 }
 
 unsafe extern "C" fn record_id_trampoline(
@@ -364,15 +381,22 @@ unsafe extern "C" fn record_id_trampoline(
     json: *const c_char,
     error_json: *const c_char,
 ) {
-    let callback: Box<RecordIdCallback> = Box::from_raw(refcon.cast());
-    let result = if error_json.is_null() {
-        let payload = parse_json_str::<crate::private::CKRecordIDPayload>(
-            &std::ffi::CStr::from_ptr(json).to_string_lossy(),
-            "user record ID",
-        );
-        payload.map(CKRecordID::from_payload)
-    } else {
-        Err(parse_borrowed_error_ptr(error_json))
-    };
-    callback(result);
+    // SAFETY: `refcon` was set via `box_closure(Box::new(callback))` and this
+    // trampoline fires exactly once.
+    catch_user_panic("cloudkit::record_id_trampoline", || {
+        let callback: Box<RecordIdCallback> = unsafe { Box::from_raw(refcon.cast()) };
+        let result = if error_json.is_null() {
+            let payload = parse_json_str::<crate::private::CKRecordIDPayload>(
+                // SAFETY: bridge guarantees `json` is a valid null-terminated C string when
+                // `error_json` is null.
+                &unsafe { std::ffi::CStr::from_ptr(json) }.to_string_lossy(),
+                "user record ID",
+            );
+            payload.map(CKRecordID::from_payload)
+        } else {
+            // SAFETY: `error_json` is non-null and points to a bridge-owned null-terminated string.
+            Err(unsafe { parse_borrowed_error_ptr(error_json) })
+        };
+        callback(result);
+    });
 }

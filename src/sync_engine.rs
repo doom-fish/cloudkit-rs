@@ -104,8 +104,13 @@ impl CKSyncEngineFetchChangesScope {
     }
 
     pub fn contains_zone_id(&self, zone_id: &CKRecordZoneID) -> bool {
-        let included = self.zone_ids.is_empty() || self.zone_ids.iter().any(|candidate| candidate == zone_id);
-        included && !self.excluded_zone_ids.iter().any(|candidate| candidate == zone_id)
+        let included =
+            self.zone_ids.is_empty() || self.zone_ids.iter().any(|candidate| candidate == zone_id);
+        included
+            && !self
+                .excluded_zone_ids
+                .iter()
+                .any(|candidate| candidate == zone_id)
     }
 }
 
@@ -223,13 +228,22 @@ impl CKSyncEngineSendChangesScope {
     }
 
     pub fn contains_zone_id(&self, zone_id: &CKRecordZoneID) -> bool {
-        let included = self.zone_ids.is_empty() || self.zone_ids.iter().any(|candidate| candidate == zone_id);
-        included && !self.excluded_zone_ids.iter().any(|candidate| candidate == zone_id)
+        let included =
+            self.zone_ids.is_empty() || self.zone_ids.iter().any(|candidate| candidate == zone_id);
+        included
+            && !self
+                .excluded_zone_ids
+                .iter()
+                .any(|candidate| candidate == zone_id)
     }
 
     pub fn contains_record_id(&self, record_id: &CKRecordID) -> bool {
         let zone_match = self.contains_zone_id(record_id.zone_id());
-        let record_match = self.record_ids.is_empty() || self.record_ids.iter().any(|candidate| candidate == record_id);
+        let record_match = self.record_ids.is_empty()
+            || self
+                .record_ids
+                .iter()
+                .any(|candidate| candidate == record_id);
         zone_match && record_match
     }
 
@@ -498,7 +512,10 @@ impl CKSyncEnginePendingDatabaseChange {
         zone_id: CKRecordZoneID,
         change_type: CKSyncEnginePendingDatabaseChangeType,
     ) -> Self {
-        Self { zone_id, change_type }
+        Self {
+            zone_id,
+            change_type,
+        }
     }
 
     pub const fn zone_id(&self) -> &CKRecordZoneID {
@@ -641,7 +658,8 @@ impl CKSyncEngineState {
     }
 
     pub fn remove_zone_id_with_unfetched_server_changes(&mut self, zone_id: &CKRecordZoneID) {
-        self.zone_ids_with_unfetched_server_changes.retain(|candidate| candidate != zone_id);
+        self.zone_ids_with_unfetched_server_changes
+            .retain(|candidate| candidate != zone_id);
     }
 }
 
@@ -654,7 +672,11 @@ pub struct CKSyncEngineRecordZoneChangeBatch {
 }
 
 impl CKSyncEngineRecordZoneChangeBatch {
-    pub fn new(records_to_save: Vec<CKRecord>, record_ids_to_delete: Vec<CKRecordID>, atomic_by_zone: bool) -> Self {
+    pub fn new(
+        records_to_save: Vec<CKRecord>,
+        record_ids_to_delete: Vec<CKRecordID>,
+        atomic_by_zone: bool,
+    ) -> Self {
         Self {
             pending_changes: Vec::new(),
             records_to_save,
@@ -864,7 +886,9 @@ pub struct CKSyncEngineStateUpdateEvent {
 
 impl CKSyncEngineStateUpdateEvent {
     pub fn new(state_serialization: CKSyncEngineStateSerialization) -> Self {
-        Self { state_serialization }
+        Self {
+            state_serialization,
+        }
     }
 
     pub const fn state_serialization(&self) -> &CKSyncEngineStateSerialization {
@@ -922,7 +946,10 @@ impl CKSyncEngineFetchedDatabaseChangesEvent {
         modifications: Vec<CKRecordZone>,
         deletions: Vec<CKSyncEngineFetchedZoneDeletion>,
     ) -> Self {
-        Self { modifications, deletions }
+        Self {
+            modifications,
+            deletions,
+        }
     }
 
     pub fn modifications(&self) -> &[CKRecordZone] {
@@ -945,7 +972,10 @@ impl CKSyncEngineFetchedRecordZoneChangesEvent {
         modifications: Vec<CKRecord>,
         deletions: Vec<CKSyncEngineFetchedRecordDeletion>,
     ) -> Self {
-        Self { modifications, deletions }
+        Self {
+            modifications,
+            deletions,
+        }
     }
 
     pub fn modifications(&self) -> &[CKRecord] {
@@ -1075,7 +1105,10 @@ pub struct CKSyncEngineDidFetchRecordZoneChangesEvent {
 
 impl CKSyncEngineDidFetchRecordZoneChangesEvent {
     pub fn new(zone_id: CKRecordZoneID) -> Self {
-        Self { zone_id, error: None }
+        Self {
+            zone_id,
+            error: None,
+        }
     }
 
     pub const fn zone_id(&self) -> &CKRecordZoneID {
@@ -1164,13 +1197,25 @@ impl CKSyncEngineEvent {
         match &self.kind {
             CKSyncEngineEventKind::StateUpdate(_) => CKSyncEngineEventType::StateUpdate,
             CKSyncEngineEventKind::AccountChange(_) => CKSyncEngineEventType::AccountChange,
-            CKSyncEngineEventKind::FetchedDatabaseChanges(_) => CKSyncEngineEventType::FetchedDatabaseChanges,
-            CKSyncEngineEventKind::FetchedRecordZoneChanges(_) => CKSyncEngineEventType::FetchedRecordZoneChanges,
-            CKSyncEngineEventKind::SentDatabaseChanges(_) => CKSyncEngineEventType::SentDatabaseChanges,
-            CKSyncEngineEventKind::SentRecordZoneChanges(_) => CKSyncEngineEventType::SentRecordZoneChanges,
+            CKSyncEngineEventKind::FetchedDatabaseChanges(_) => {
+                CKSyncEngineEventType::FetchedDatabaseChanges
+            }
+            CKSyncEngineEventKind::FetchedRecordZoneChanges(_) => {
+                CKSyncEngineEventType::FetchedRecordZoneChanges
+            }
+            CKSyncEngineEventKind::SentDatabaseChanges(_) => {
+                CKSyncEngineEventType::SentDatabaseChanges
+            }
+            CKSyncEngineEventKind::SentRecordZoneChanges(_) => {
+                CKSyncEngineEventType::SentRecordZoneChanges
+            }
             CKSyncEngineEventKind::WillFetchChanges(_) => CKSyncEngineEventType::WillFetchChanges,
-            CKSyncEngineEventKind::WillFetchRecordZoneChanges(_) => CKSyncEngineEventType::WillFetchRecordZoneChanges,
-            CKSyncEngineEventKind::DidFetchRecordZoneChanges(_) => CKSyncEngineEventType::DidFetchRecordZoneChanges,
+            CKSyncEngineEventKind::WillFetchRecordZoneChanges(_) => {
+                CKSyncEngineEventType::WillFetchRecordZoneChanges
+            }
+            CKSyncEngineEventKind::DidFetchRecordZoneChanges(_) => {
+                CKSyncEngineEventType::DidFetchRecordZoneChanges
+            }
             CKSyncEngineEventKind::DidFetchChanges(_) => CKSyncEngineEventType::DidFetchChanges,
             CKSyncEngineEventKind::WillSendChanges(_) => CKSyncEngineEventType::WillSendChanges,
             CKSyncEngineEventKind::DidSendChanges(_) => CKSyncEngineEventType::DidSendChanges,
@@ -1198,7 +1243,9 @@ impl CKSyncEngineEvent {
         }
     }
 
-    pub fn as_fetched_record_zone_changes(&self) -> Option<&CKSyncEngineFetchedRecordZoneChangesEvent> {
+    pub fn as_fetched_record_zone_changes(
+        &self,
+    ) -> Option<&CKSyncEngineFetchedRecordZoneChangesEvent> {
         match &self.kind {
             CKSyncEngineEventKind::FetchedRecordZoneChanges(event) => Some(event),
             _ => None,
@@ -1226,14 +1273,18 @@ impl CKSyncEngineEvent {
         }
     }
 
-    pub fn as_will_fetch_record_zone_changes(&self) -> Option<&CKSyncEngineWillFetchRecordZoneChangesEvent> {
+    pub fn as_will_fetch_record_zone_changes(
+        &self,
+    ) -> Option<&CKSyncEngineWillFetchRecordZoneChangesEvent> {
         match &self.kind {
             CKSyncEngineEventKind::WillFetchRecordZoneChanges(event) => Some(event),
             _ => None,
         }
     }
 
-    pub fn as_did_fetch_record_zone_changes(&self) -> Option<&CKSyncEngineDidFetchRecordZoneChangesEvent> {
+    pub fn as_did_fetch_record_zone_changes(
+        &self,
+    ) -> Option<&CKSyncEngineDidFetchRecordZoneChangesEvent> {
         match &self.kind {
             CKSyncEngineEventKind::DidFetchRecordZoneChanges(event) => Some(event),
             _ => None,
@@ -1276,13 +1327,28 @@ macro_rules! impl_event_from {
 
 impl_event_from!(CKSyncEngineStateUpdateEvent, StateUpdate);
 impl_event_from!(CKSyncEngineAccountChangeEvent, AccountChange);
-impl_event_from!(CKSyncEngineFetchedDatabaseChangesEvent, FetchedDatabaseChanges);
-impl_event_from!(CKSyncEngineFetchedRecordZoneChangesEvent, FetchedRecordZoneChanges);
+impl_event_from!(
+    CKSyncEngineFetchedDatabaseChangesEvent,
+    FetchedDatabaseChanges
+);
+impl_event_from!(
+    CKSyncEngineFetchedRecordZoneChangesEvent,
+    FetchedRecordZoneChanges
+);
 impl_event_from!(CKSyncEngineSentDatabaseChangesEvent, SentDatabaseChanges);
-impl_event_from!(CKSyncEngineSentRecordZoneChangesEvent, SentRecordZoneChanges);
+impl_event_from!(
+    CKSyncEngineSentRecordZoneChangesEvent,
+    SentRecordZoneChanges
+);
 impl_event_from!(CKSyncEngineWillFetchChangesEvent, WillFetchChanges);
-impl_event_from!(CKSyncEngineWillFetchRecordZoneChangesEvent, WillFetchRecordZoneChanges);
-impl_event_from!(CKSyncEngineDidFetchRecordZoneChangesEvent, DidFetchRecordZoneChanges);
+impl_event_from!(
+    CKSyncEngineWillFetchRecordZoneChangesEvent,
+    WillFetchRecordZoneChanges
+);
+impl_event_from!(
+    CKSyncEngineDidFetchRecordZoneChangesEvent,
+    DidFetchRecordZoneChanges
+);
 impl_event_from!(CKSyncEngineDidFetchChangesEvent, DidFetchChanges);
 impl_event_from!(CKSyncEngineWillSendChangesEvent, WillSendChanges);
 impl_event_from!(CKSyncEngineDidSendChangesEvent, DidSendChanges);
@@ -1327,8 +1393,10 @@ impl CKSyncEngine {
     }
 
     pub fn fetch_changes(&self, reason: CKSyncEngineSyncReason) -> CKSyncEngineFetchChangesContext {
-        let default_options = CKSyncEngineFetchChangesOptions::new(CKSyncEngineFetchChangesScope::default());
-        let provisional_context = CKSyncEngineFetchChangesContext::new(reason, default_options.clone());
+        let default_options =
+            CKSyncEngineFetchChangesOptions::new(CKSyncEngineFetchChangesScope::default());
+        let provisional_context =
+            CKSyncEngineFetchChangesContext::new(reason, default_options.clone());
         let options = self
             .configuration
             .delegate()

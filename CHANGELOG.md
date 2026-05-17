@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.3.1] - 2026-05-17
+
+### Fixed
+
+- Wrapped all five `extern "C"` bridge callbacks (`status_callback`, `json_callback`, `query_callback_trampoline`, `account_status_trampoline`, `record_id_trampoline`) in `doom_fish_utils::panic_safe::catch_user_panic` — previously, a panic inside any callback would unwind across the FFI boundary (undefined behaviour).
+- Renamed misleading variable `payload` to `json_str` in `json_callback` success path.
+- Added `SAFETY:` comments to every `unsafe` block in `src/database.rs`, `src/operation.rs`, `src/operation_support.rs`, `src/async_api.rs`, and `src/container.rs`.
+- Added `# Safety` doc sections to the unsafe helpers in `src/private.rs`.
+- Added one-line `///` doc comments to all public `*Future` types in `src/async_api.rs`.
+- Widened `doom-fish-utils` version range to `>=0.1, <0.3` to allow the next minor release.
+
 ## [0.3.0] - 2026-05-17
 
 ### Added

@@ -23,7 +23,9 @@ fn sample_record_id() -> CKRecordID {
 fn sample_identity() -> CKUserIdentity {
     CKUserIdentity::new()
         .with_user_record_id(sample_record_id())
-        .with_lookup_info(CKUserIdentityLookupInfo::with_email_address("tester@example.com"))
+        .with_lookup_info(CKUserIdentityLookupInfo::with_email_address(
+            "tester@example.com",
+        ))
         .with_name_components(CKPersonNameComponents::new().with_given_name("Test"))
         .with_has_i_cloud_account(true)
         .with_contact_identifiers(vec!["tester@example.com".into()])
@@ -36,28 +38,35 @@ fn sample_share_metadata() -> Result<CKShareMetadata, CloudKitError> {
     let share = CKShare::new_root_record(&root_record)?;
     let root_record_id = root_record.record_id().clone();
 
-    Ok(CKShareMetadata::new(
-        "iCloud.example.expanded-surface",
-        share,
-        sample_identity(),
+    Ok(
+        CKShareMetadata::new("iCloud.example.expanded-surface", share, sample_identity())
+            .with_hierarchical_root_record_id(root_record_id.clone())
+            .with_participant_role(CKShareParticipantRole::Owner)
+            .with_participant_status(CKShareParticipantAcceptanceStatus::Accepted)
+            .with_participant_permission(CKShareParticipantPermission::ReadWrite)
+            .with_root_record(root_record)
+            .with_participant_type(CKShareParticipantType::Owner)
+            .with_root_record_id(root_record_id),
     )
-    .with_hierarchical_root_record_id(root_record_id.clone())
-    .with_participant_role(CKShareParticipantRole::Owner)
-    .with_participant_status(CKShareParticipantAcceptanceStatus::Accepted)
-    .with_participant_permission(CKShareParticipantPermission::ReadWrite)
-    .with_root_record(root_record)
-    .with_participant_type(CKShareParticipantType::Owner)
-    .with_root_record_id(root_record_id))
 }
 
 #[test]
 fn exported_constants_match_the_sdk_values() {
-    assert_eq!(CK_ACCOUNT_CHANGED_NOTIFICATION, "CKAccountChangedNotification");
+    assert_eq!(
+        CK_ACCOUNT_CHANGED_NOTIFICATION,
+        "CKAccountChangedNotification"
+    );
     assert_eq!(CK_CURRENT_USER_DEFAULT_NAME, "__defaultOwner__");
     assert_eq!(CK_ERROR_RETRY_AFTER_KEY, "CKRetryAfter");
-    assert_eq!(CK_ERROR_USER_DID_RESET_ENCRYPTED_DATA_KEY, "CKUserDidResetEncryptedData");
+    assert_eq!(
+        CK_ERROR_USER_DID_RESET_ENCRYPTED_DATA_KEY,
+        "CKUserDidResetEncryptedData"
+    );
     assert_eq!(CK_PARTIAL_ERRORS_BY_ITEM_ID_KEY, "CKPartialErrors");
-    assert_eq!(CK_RECORD_CHANGED_ERROR_ANCESTOR_RECORD_KEY, "AncestorRecord");
+    assert_eq!(
+        CK_RECORD_CHANGED_ERROR_ANCESTOR_RECORD_KEY,
+        "AncestorRecord"
+    );
     assert_eq!(CK_RECORD_CHANGED_ERROR_CLIENT_RECORD_KEY, "ClientRecord");
     assert_eq!(CK_RECORD_CHANGED_ERROR_SERVER_RECORD_KEY, "ServerRecord");
     assert_eq!(CK_QUERY_OPERATION_MAXIMUM_RESULTS, 0);
@@ -72,13 +81,17 @@ fn exported_constants_match_the_sdk_values() {
     assert_eq!(CK_RECORD_ZONE_DEFAULT_NAME, "_defaultZone");
     assert_eq!(CK_RECORD_NAME_ZONE_WIDE_SHARE, "cloudkit.zoneshare");
     assert_eq!(CK_RECORD_TYPE_SHARE, "cloudkit.share");
-    assert_eq!(CK_SHARE_THUMBNAIL_IMAGE_DATA_KEY, "cloudkit.thumbnailImageData");
+    assert_eq!(
+        CK_SHARE_THUMBNAIL_IMAGE_DATA_KEY,
+        "cloudkit.thumbnailImageData"
+    );
     assert_eq!(CK_SHARE_TITLE_KEY, "cloudkit.title");
     assert_eq!(CK_SHARE_TYPE_KEY, "cloudkit.type");
 }
 
 #[test]
-fn notification_and_share_support_types_capture_local_state() -> Result<(), Box<dyn std::error::Error>> {
+fn notification_and_share_support_types_capture_local_state(
+) -> Result<(), Box<dyn std::error::Error>> {
     let zone_id = sample_zone_id();
     let record_id = sample_record_id();
     let identity = sample_identity();
@@ -108,10 +121,10 @@ fn notification_and_share_support_types_capture_local_state() -> Result<(), Box<
     let permission_options = CKSharingParticipantPermissionOption::READ_ONLY
         | CKSharingParticipantPermissionOption::READ_WRITE;
     let sharing_options = CKAllowedSharingOptions::new(permission_options, access_options);
-    let requester =
-        CKShareAccessRequester::new(identity.clone(), lookup_info.clone()).with_contact_display_name("Tester");
-    let blocked_identity = CKShareBlockedIdentity::new(identity.clone())
-        .with_contact_display_name("Blocked Tester");
+    let requester = CKShareAccessRequester::new(identity.clone(), lookup_info.clone())
+        .with_contact_display_name("Tester");
+    let blocked_identity =
+        CKShareBlockedIdentity::new(identity.clone()).with_contact_display_name("Blocked Tester");
 
     let metadata = sample_share_metadata()?;
     let saved_calls = Arc::new(Mutex::new(0_u32));
@@ -128,17 +141,25 @@ fn notification_and_share_support_types_capture_local_state() -> Result<(), Box<
         .with_did_stop_sharing_handler(move |stopped_record_id, error| {
             assert_eq!(stopped_record_id.record_name(), "expanded-surface-record");
             assert!(error.is_none());
-            *stopped_calls_for_handler.lock().expect("stop handler mutex") += 1;
+            *stopped_calls_for_handler
+                .lock()
+                .expect("stop handler mutex") += 1;
         });
 
     observer.notify_did_save_share(&record_id, Some(metadata.share()), None);
     observer.notify_did_stop_sharing(&record_id, None);
 
     assert_eq!(notification.notification_type(), CKNotificationType::Query);
-    assert_eq!(query_notification.query_notification_reason(), CKQueryNotificationReason::RecordUpdated);
+    assert_eq!(
+        query_notification.query_notification_reason(),
+        CKQueryNotificationReason::RecordUpdated
+    );
     assert_eq!(query_notification.record_fields().len(), 1);
     assert_eq!(zone_notification.database_scope(), CKDatabaseScope::Shared);
-    assert_eq!(database_notification.database_scope(), CKDatabaseScope::Public);
+    assert_eq!(
+        database_notification.database_scope(),
+        CKDatabaseScope::Public
+    );
     assert!(sharing_options
         .allowed_participant_access_options()
         .contains(CKSharingParticipantAccessOption::ANYONE_WITH_LINK));
@@ -146,11 +167,26 @@ fn notification_and_share_support_types_capture_local_state() -> Result<(), Box<
         .allowed_participant_permission_options()
         .contains(CKSharingParticipantPermissionOption::READ_WRITE));
     assert_eq!(requester.contact_display_name(), Some("Tester"));
-    assert_eq!(blocked_identity.contact_display_name(), Some("Blocked Tester"));
-    assert_eq!(metadata.container_identifier(), "iCloud.example.expanded-surface");
-    assert_eq!(metadata.participant_type(), Some(CKShareParticipantType::Owner));
-    assert_eq!(metadata.participant_status(), CKShareParticipantAcceptanceStatus::Accepted);
-    assert_eq!(metadata.participant_permission(), CKShareParticipantPermission::ReadWrite);
+    assert_eq!(
+        blocked_identity.contact_display_name(),
+        Some("Blocked Tester")
+    );
+    assert_eq!(
+        metadata.container_identifier(),
+        "iCloud.example.expanded-surface"
+    );
+    assert_eq!(
+        metadata.participant_type(),
+        Some(CKShareParticipantType::Owner)
+    );
+    assert_eq!(
+        metadata.participant_status(),
+        CKShareParticipantAcceptanceStatus::Accepted
+    );
+    assert_eq!(
+        metadata.participant_permission(),
+        CKShareParticipantPermission::ReadWrite
+    );
     assert_eq!(
         metadata
             .share()
@@ -166,7 +202,8 @@ fn notification_and_share_support_types_capture_local_state() -> Result<(), Box<
 }
 
 #[test]
-fn operation_support_types_store_requested_configuration() -> Result<(), Box<dyn std::error::Error>> {
+fn operation_support_types_store_requested_configuration() -> Result<(), Box<dyn std::error::Error>>
+{
     let container = sample_container();
     let database = container.private_cloud_database();
     let zone_id = sample_zone_id();
@@ -227,21 +264,36 @@ fn operation_support_types_store_requested_configuration() -> Result<(), Box<dyn
         .execute_in(&database)
         .expect_err("missing API token should fail before reaching CloudKit");
 
-    assert_eq!(configuration.quality_of_service(), CKQualityOfService::Utility);
+    assert_eq!(
+        configuration.quality_of_service(),
+        CKQualityOfService::Utility
+    );
     assert!(!configuration.allows_cellular_access());
     assert!(configuration.long_lived());
     assert_eq!(group.name(), Some("expanded-surface"));
     assert!(operation.long_lived_operation_was_persisted());
     assert_eq!(fetch_zones.record_zone_ids().expect("zone ids").len(), 1);
     assert_eq!(modify_zones.record_zones_to_save().len(), 1);
-    assert_eq!(fetch_subscriptions.subscription_ids().expect("subscription ids").len(), 1);
+    assert_eq!(
+        fetch_subscriptions
+            .subscription_ids()
+            .expect("subscription ids")
+            .len(),
+        1
+    );
     assert_eq!(modify_subscriptions.subscriptions_to_save().len(), 1);
-    assert_eq!(fetch_share_participants.user_identity_lookup_infos().len(), 1);
+    assert_eq!(
+        fetch_share_participants.user_identity_lookup_infos().len(),
+        1
+    );
     assert!(fetch_share_metadata.should_fetch_root_record());
     assert_eq!(accept_shares.share_metadatas().len(), 1);
     assert_eq!(request_share_access.share_urls().len(), 1);
     assert_eq!(location_sort_descriptor.key(), "location");
-    assert_eq!(missing_api_token.kind(), CloudKitErrorCode::BridgeInvalidArgument);
+    assert_eq!(
+        missing_api_token.kind(),
+        CloudKitErrorCode::BridgeInvalidArgument
+    );
 
     Ok(())
 }
@@ -300,7 +352,10 @@ fn sync_engine_surface_builds_state_batches_and_events() -> Result<(), Box<dyn s
 
     let fetch_scope = CKSyncEngineFetchChangesScope::new()
         .add_zone_id(zone_id.clone())
-        .add_excluded_zone_id(CKRecordZoneID::new("ExcludedZone", CK_CURRENT_USER_DEFAULT_NAME));
+        .add_excluded_zone_id(CKRecordZoneID::new(
+            "ExcludedZone",
+            CK_CURRENT_USER_DEFAULT_NAME,
+        ));
     let send_scope = CKSyncEngineSendChangesScope::new()
         .add_zone_id(zone_id.clone())
         .add_record_id(record_id.clone());
@@ -308,10 +363,14 @@ fn sync_engine_surface_builds_state_batches_and_events() -> Result<(), Box<dyn s
     let fetch_options = CKSyncEngineFetchChangesOptions::new(fetch_scope.clone())
         .with_operation_group(group.clone())
         .with_prioritized_zone_id(zone_id.clone());
-    let send_options = CKSyncEngineSendChangesOptions::new(send_scope.clone())
-        .with_operation_group(group.clone());
-    let fetch_context = CKSyncEngineFetchChangesContext::new(CKSyncEngineSyncReason::Manual, fetch_options.clone());
-    let send_context = CKSyncEngineSendChangesContext::new(CKSyncEngineSyncReason::Scheduled, send_options.clone());
+    let send_options =
+        CKSyncEngineSendChangesOptions::new(send_scope.clone()).with_operation_group(group.clone());
+    let fetch_context =
+        CKSyncEngineFetchChangesContext::new(CKSyncEngineSyncReason::Manual, fetch_options.clone());
+    let send_context = CKSyncEngineSendChangesContext::new(
+        CKSyncEngineSyncReason::Scheduled,
+        send_options.clone(),
+    );
 
     let pending_record_save = CKSyncEnginePendingRecordZoneChange::new(
         record_id.clone(),
@@ -332,25 +391,27 @@ fn sync_engine_surface_builds_state_batches_and_events() -> Result<(), Box<dyn s
     state.set_has_pending_untracked_changes(true);
     state.add_zone_id_with_unfetched_server_changes(zone_id.clone());
 
-    let batch = CKSyncEngineRecordZoneChangeBatch::new(
-        vec![record.clone()],
-        vec![record_id.clone()],
-        true,
-    )
-    .with_atomic_by_zone(false);
+    let batch =
+        CKSyncEngineRecordZoneChangeBatch::new(vec![record.clone()], vec![record_id.clone()], true)
+            .with_atomic_by_zone(false);
 
     let missing_api_token = CKFetchWebAuthTokenOperation::new()
         .execute_in(&database)
         .expect_err("missing API token should fail before reaching CloudKit");
     let fetched_record_deletion =
         CKSyncEngineFetchedRecordDeletion::new(record_id.clone(), "ExpandedSyncRecord");
-    let fetched_zone_deletion =
-        CKSyncEngineFetchedZoneDeletion::new(zone_id.clone(), CKSyncEngineZoneDeletionReason::Deleted);
-    let failed_record_save = CKSyncEngineFailedRecordSave::new(record.clone(), missing_api_token.clone());
-    let failed_zone_save = CKSyncEngineFailedZoneSave::new(record_zone.clone(), missing_api_token.clone());
+    let fetched_zone_deletion = CKSyncEngineFetchedZoneDeletion::new(
+        zone_id.clone(),
+        CKSyncEngineZoneDeletionReason::Deleted,
+    );
+    let failed_record_save =
+        CKSyncEngineFailedRecordSave::new(record.clone(), missing_api_token.clone());
+    let failed_zone_save =
+        CKSyncEngineFailedZoneSave::new(record_zone.clone(), missing_api_token.clone());
     let failed_record_delete =
         CKSyncEngineFailedRecordDelete::new(record_id.clone(), missing_api_token.clone());
-    let failed_zone_delete = CKSyncEngineFailedZoneDelete::new(zone_id.clone(), missing_api_token.clone());
+    let failed_zone_delete =
+        CKSyncEngineFailedZoneDelete::new(zone_id.clone(), missing_api_token.clone());
 
     let state_update = CKSyncEngineStateUpdateEvent::new(state_serialization.clone());
     let account_change = CKSyncEngineAccountChangeEvent::new(CKSyncEngineAccountChangeType::SignIn)
@@ -378,8 +439,8 @@ fn sync_engine_surface_builds_state_batches_and_events() -> Result<(), Box<dyn s
     );
     let will_fetch = CKSyncEngineWillFetchChangesEvent::new(fetch_context.clone());
     let will_fetch_zone = CKSyncEngineWillFetchRecordZoneChangesEvent::new(zone_id.clone());
-    let did_fetch_zone =
-        CKSyncEngineDidFetchRecordZoneChangesEvent::new(zone_id.clone()).with_error(missing_api_token.clone());
+    let did_fetch_zone = CKSyncEngineDidFetchRecordZoneChangesEvent::new(zone_id.clone())
+        .with_error(missing_api_token.clone());
     let did_fetch = CKSyncEngineDidFetchChangesEvent::new(fetch_context.clone());
     let will_send = CKSyncEngineWillSendChangesEvent::new(send_context.clone());
     let did_send = CKSyncEngineDidSendChangesEvent::new(send_context.clone());
@@ -426,17 +487,35 @@ fn sync_engine_surface_builds_state_batches_and_events() -> Result<(), Box<dyn s
     assert!(!batch.atomic_by_zone());
     assert_eq!(batch.record_ids_to_delete().len(), 1);
     assert_eq!(fetched_record_deletion.record_type(), "ExpandedSyncRecord");
-    assert_eq!(fetched_zone_deletion.reason(), CKSyncEngineZoneDeletionReason::Deleted);
-    assert_eq!(failed_record_save.record().record_type(), "ExpandedSyncRecord");
-    assert_eq!(failed_zone_save.record_zone().zone_id().zone_name(), zone_id.zone_name());
-    assert_eq!(state_update.state_serialization().archived_data(), &[9, 8, 7]);
-    assert_eq!(account_change.change_type(), CKSyncEngineAccountChangeType::SignIn);
+    assert_eq!(
+        fetched_zone_deletion.reason(),
+        CKSyncEngineZoneDeletionReason::Deleted
+    );
+    assert_eq!(
+        failed_record_save.record().record_type(),
+        "ExpandedSyncRecord"
+    );
+    assert_eq!(
+        failed_zone_save.record_zone().zone_id().zone_name(),
+        zone_id.zone_name()
+    );
+    assert_eq!(
+        state_update.state_serialization().archived_data(),
+        &[9, 8, 7]
+    );
+    assert_eq!(
+        account_change.change_type(),
+        CKSyncEngineAccountChangeType::SignIn
+    );
     assert_eq!(fetched_db_changes.modifications().len(), 1);
     assert_eq!(fetched_record_zone_changes.modifications().len(), 1);
     assert_eq!(sent_db_changes.failed_zone_saves().len(), 1);
     assert_eq!(sent_record_zone_changes.failed_record_saves().len(), 1);
     assert_eq!(event.event_type(), CKSyncEngineEventType::WillFetchChanges);
-    assert_eq!(runtime_fetch_context.reason(), CKSyncEngineSyncReason::Manual);
+    assert_eq!(
+        runtime_fetch_context.reason(),
+        CKSyncEngineSyncReason::Manual
+    );
     assert_eq!(runtime_batch.record_ids_to_delete().len(), 1);
     assert!(recorded_event_types.contains(&CKSyncEngineEventType::WillFetchChanges));
     assert!(recorded_event_types.contains(&CKSyncEngineEventType::WillSendChanges));

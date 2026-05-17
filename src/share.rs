@@ -3,7 +3,9 @@ use core::ptr;
 
 use crate::error::CloudKitError;
 use crate::ffi;
-use crate::private::{error_from_status, json_cstring, parse_json_ptr, CKShareParticipantPayload, CKSharePayload};
+use crate::private::{
+    error_from_status, json_cstring, parse_json_ptr, CKShareParticipantPayload, CKSharePayload,
+};
 use crate::record::{CKRecord, CKRecordID, CKRecordZoneID};
 use crate::user_identity::CKUserIdentity;
 
@@ -101,11 +103,13 @@ impl CKShareParticipant {
     pub fn one_time_url_participant() -> Result<Self, CloudKitError> {
         let mut out_json: *mut c_char = ptr::null_mut();
         let mut out_error: *mut c_char = ptr::null_mut();
-        let status = unsafe { ffi::ck_share_create_one_time_url_participant(&mut out_json, &mut out_error) };
+        let status =
+            unsafe { ffi::ck_share_create_one_time_url_participant(&mut out_json, &mut out_error) };
         if status != ffi::status::OK {
             return Err(unsafe { error_from_status(status, out_error) });
         }
-        let payload = unsafe { parse_json_ptr::<CKShareParticipantPayload>(out_json, "share participant")? };
+        let payload =
+            unsafe { parse_json_ptr::<CKShareParticipantPayload>(out_json, "share participant")? };
         Ok(Self::from_payload(payload))
     }
 
@@ -147,7 +151,9 @@ impl CKShareParticipant {
             user_identity: CKUserIdentity::from_payload(payload.user_identity),
             role: payload.role.map(CKShareParticipantRole::from_raw),
             permission: CKShareParticipantPermission::from_raw(payload.permission),
-            acceptance_status: CKShareParticipantAcceptanceStatus::from_raw(payload.acceptance_status),
+            acceptance_status: CKShareParticipantAcceptanceStatus::from_raw(
+                payload.acceptance_status,
+            ),
             participant_id: payload.participant_id,
             is_approved_requester: payload.is_approved_requester,
             date_added_to_share: payload.date_added_to_share,
@@ -159,7 +165,10 @@ impl CKShareParticipant {
             archived_data: self.archived_data.clone(),
             user_identity: crate::private::CKUserIdentityPayload {
                 archived_data: self.user_identity.archived_data().to_vec(),
-                user_record_id: self.user_identity.user_record_id().map(CKRecordID::to_payload),
+                user_record_id: self
+                    .user_identity
+                    .user_record_id()
+                    .map(CKRecordID::to_payload),
                 lookup_info: self
                     .user_identity
                     .lookup_info()
@@ -217,7 +226,11 @@ impl CKShare {
         let mut out_json: *mut c_char = ptr::null_mut();
         let mut out_error: *mut c_char = ptr::null_mut();
         let status = unsafe {
-            ffi::ck_share_create_root_record(root_record_json.as_ptr(), &mut out_json, &mut out_error)
+            ffi::ck_share_create_root_record(
+                root_record_json.as_ptr(),
+                &mut out_json,
+                &mut out_error,
+            )
         };
         if status != ffi::status::OK {
             return Err(unsafe { error_from_status(status, out_error) });
@@ -296,7 +309,10 @@ impl CKShare {
         self.share_record.clone()
     }
 
-    pub fn with_public_permission(mut self, public_permission: CKShareParticipantPermission) -> Result<Self, CloudKitError> {
+    pub fn with_public_permission(
+        mut self,
+        public_permission: CKShareParticipantPermission,
+    ) -> Result<Self, CloudKitError> {
         self.public_permission = public_permission;
         self.normalize()
     }
@@ -306,7 +322,10 @@ impl CKShare {
         self.normalize()
     }
 
-    pub fn with_thumbnail_image_data(mut self, thumbnail_image_data: Vec<u8>) -> Result<Self, CloudKitError> {
+    pub fn with_thumbnail_image_data(
+        mut self,
+        thumbnail_image_data: Vec<u8>,
+    ) -> Result<Self, CloudKitError> {
         self.thumbnail_image_data = Some(thumbnail_image_data);
         self.normalize()
     }
@@ -316,18 +335,25 @@ impl CKShare {
         self.normalize()
     }
 
-    pub fn with_allows_access_requests(mut self, allows_access_requests: bool) -> Result<Self, CloudKitError> {
+    pub fn with_allows_access_requests(
+        mut self,
+        allows_access_requests: bool,
+    ) -> Result<Self, CloudKitError> {
         self.allows_access_requests = Some(allows_access_requests);
         self.normalize()
     }
 
-    pub fn add_participant(mut self, participant: CKShareParticipant) -> Result<Self, CloudKitError> {
+    pub fn add_participant(
+        mut self,
+        participant: CKShareParticipant,
+    ) -> Result<Self, CloudKitError> {
         self.participants.push(participant);
         self.normalize()
     }
 
     pub fn remove_participant(mut self, participant_id: &str) -> Result<Self, CloudKitError> {
-        self.participants.retain(|participant| participant.participant_id() != participant_id);
+        self.participants
+            .retain(|participant| participant.participant_id() != participant_id);
         self.normalize()
     }
 
@@ -335,7 +361,8 @@ impl CKShare {
         let share_json = json_cstring(&self.to_payload(), "share")?;
         let mut out_json: *mut c_char = ptr::null_mut();
         let mut out_error: *mut c_char = ptr::null_mut();
-        let status = unsafe { ffi::ck_share_normalize(share_json.as_ptr(), &mut out_json, &mut out_error) };
+        let status =
+            unsafe { ffi::ck_share_normalize(share_json.as_ptr(), &mut out_json, &mut out_error) };
         if status != ffi::status::OK {
             return Err(unsafe { error_from_status(status, out_error) });
         }
@@ -374,7 +401,11 @@ impl CKShare {
             zone_id: self.zone_id.to_payload(),
             public_permission: self.public_permission.to_raw(),
             url: self.url.clone(),
-            participants: self.participants.iter().map(CKShareParticipant::to_payload).collect(),
+            participants: self
+                .participants
+                .iter()
+                .map(CKShareParticipant::to_payload)
+                .collect(),
             owner: self.owner.as_ref().map(CKShareParticipant::to_payload),
             current_user_participant: self
                 .current_user_participant
@@ -417,7 +448,9 @@ impl CKShareParticipant {
             Some(CKShareParticipantRole::Owner) => CKShareParticipantType::Owner,
             Some(CKShareParticipantRole::PrivateUser) => CKShareParticipantType::PrivateUser,
             Some(CKShareParticipantRole::PublicUser) => CKShareParticipantType::PublicUser,
-            Some(CKShareParticipantRole::UnknownValue(raw)) => CKShareParticipantType::UnknownValue(raw),
+            Some(CKShareParticipantRole::UnknownValue(raw)) => {
+                CKShareParticipantType::UnknownValue(raw)
+            }
             _ => CKShareParticipantType::Unknown,
         }
     }
@@ -613,7 +646,9 @@ impl CKShareMetadata {
         owner_identity: CKUserIdentity,
     ) -> Self {
         let root_record = share.root_record().cloned();
-        let root_record_id = root_record.as_ref().map(|record| record.record_id().clone());
+        let root_record_id = root_record
+            .as_ref()
+            .map(|record| record.record_id().clone());
         Self {
             archived_data: Vec::new(),
             container_identifier: container_identifier.into(),
@@ -731,7 +766,9 @@ impl CKShareMetadata {
             hierarchical_root_record_id: payload
                 .hierarchical_root_record_id
                 .map(CKRecordID::from_payload),
-            participant_role: payload.participant_role.map(CKShareParticipantRole::from_raw),
+            participant_role: payload
+                .participant_role
+                .map(CKShareParticipantRole::from_raw),
             participant_status: CKShareParticipantAcceptanceStatus::from_raw(
                 payload.participant_status,
             ),
@@ -740,7 +777,9 @@ impl CKShareMetadata {
             ),
             owner_identity: CKUserIdentity::from_payload(payload.owner_identity),
             root_record: payload.root_record.map(CKRecord::from_payload),
-            participant_type: payload.participant_type.map(CKShareParticipantType::from_raw),
+            participant_type: payload
+                .participant_type
+                .map(CKShareParticipantType::from_raw),
             root_record_id: payload.root_record_id.map(CKRecordID::from_payload),
         }
     }
@@ -772,7 +811,10 @@ impl CKShareMetadata {
             participant_permission: self.participant_permission.to_raw(),
             owner_identity: crate::private::CKUserIdentityPayload {
                 archived_data: self.owner_identity.archived_data().to_vec(),
-                user_record_id: self.owner_identity.user_record_id().map(CKRecordID::to_payload),
+                user_record_id: self
+                    .owner_identity
+                    .user_record_id()
+                    .map(CKRecordID::to_payload),
                 lookup_info: self
                     .owner_identity
                     .lookup_info()
@@ -785,23 +827,22 @@ impl CKShareMetadata {
                 contact_identifiers: self.owner_identity.contact_identifiers().to_vec(),
             },
             root_record: self.root_record.as_ref().map(CKRecord::to_payload),
-            participant_type: self.participant_type.map(|participant_type| match participant_type {
-                CKShareParticipantType::Unknown => 0,
-                CKShareParticipantType::Owner => 1,
-                CKShareParticipantType::PrivateUser => 3,
-                CKShareParticipantType::PublicUser => 4,
-                CKShareParticipantType::UnknownValue(raw) => raw,
-            }),
+            participant_type: self.participant_type.map(
+                |participant_type| match participant_type {
+                    CKShareParticipantType::Unknown => 0,
+                    CKShareParticipantType::Owner => 1,
+                    CKShareParticipantType::PrivateUser => 3,
+                    CKShareParticipantType::PublicUser => 4,
+                    CKShareParticipantType::UnknownValue(raw) => raw,
+                },
+            ),
             root_record_id: self.root_record_id.as_ref().map(CKRecordID::to_payload),
         }
     }
 }
 
-pub type CKSystemSharingUIDidSaveShareHandler = dyn Fn(
-        &CKRecordID,
-        Option<&CKShare>,
-        Option<&crate::error::CloudKitError>,
-    ) + Send
+pub type CKSystemSharingUIDidSaveShareHandler = dyn Fn(&CKRecordID, Option<&CKShare>, Option<&crate::error::CloudKitError>)
+    + Send
     + Sync
     + 'static;
 pub type CKSystemSharingUIDidStopSharingHandler =

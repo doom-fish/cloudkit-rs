@@ -1,8 +1,9 @@
 use crate::error::CloudKitError;
 use crate::operation::QueryMatchResult;
 use crate::private::{
-    CKDeletedRecordPayload, CKFetchDatabaseChangesResultPayload, CKFetchRecordZoneChangesResultPayload,
-    CKFetchedQueryResultsPayload, CKQueryCursorPayload, CKRecordResultPayload,
+    CKDeletedRecordPayload, CKFetchDatabaseChangesResultPayload,
+    CKFetchRecordZoneChangesResultPayload, CKFetchedQueryResultsPayload, CKQueryCursorPayload,
+    CKRecordResultPayload,
 };
 use crate::record::{CKRecord, CKRecordID, CKRecordZoneID};
 use crate::server_change_token::CKServerChangeToken;
@@ -37,7 +38,11 @@ pub struct CKFetchedQueryResults {
 impl CKFetchedQueryResults {
     pub(crate) fn from_payload(payload: CKFetchedQueryResultsPayload) -> Self {
         Self {
-            records: payload.records.into_iter().map(CKRecord::from_payload).collect(),
+            records: payload
+                .records
+                .into_iter()
+                .map(CKRecord::from_payload)
+                .collect(),
             matches: payload
                 .matches
                 .into_iter()
@@ -132,7 +137,9 @@ impl CKFetchDatabaseChangesResult {
                 .into_iter()
                 .map(CKServerChangeToken::from_payload)
                 .collect(),
-            server_change_token: payload.server_change_token.map(CKServerChangeToken::from_payload),
+            server_change_token: payload
+                .server_change_token
+                .map(CKServerChangeToken::from_payload),
             more_coming: payload.more_coming,
             operation_error: payload.operation_error.map(CloudKitError::from_payload),
         }
@@ -180,7 +187,9 @@ impl CKFetchRecordZoneChangesResult {
                         .into_iter()
                         .map(CKServerChangeToken::from_payload)
                         .collect(),
-                    server_change_token: zone.server_change_token.map(CKServerChangeToken::from_payload),
+                    server_change_token: zone
+                        .server_change_token
+                        .map(CKServerChangeToken::from_payload),
                     client_change_token_data: zone.client_change_token_data,
                     more_coming: zone.more_coming,
                     zone_error: zone.zone_error.map(CloudKitError::from_payload),
