@@ -15,23 +15,31 @@ use crate::reference_utility::{CKReference, CKReferenceAction};
 const DEFAULT_ZONE_NAME: &str = "_defaultZone";
 const DEFAULT_OWNER_NAME: &str = "__defaultOwner__";
 
+/// Wraps `CKRecordZoneCapabilities`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct CKRecordZoneCapabilities(u64);
 
 impl CKRecordZoneCapabilities {
+    /// Mirrors the `fetchChanges` option on `CKRecordZoneCapabilities`.
     pub const FETCH_CHANGES: Self = Self(1 << 0);
+    /// Mirrors the `atomic` option on `CKRecordZoneCapabilities`.
     pub const ATOMIC: Self = Self(1 << 1);
+    /// Mirrors the `sharing` option on `CKRecordZoneCapabilities`.
     pub const SHARING: Self = Self(1 << 2);
+    /// Mirrors the `zoneWideSharing` option on `CKRecordZoneCapabilities`.
     pub const ZONE_WIDE_SHARING: Self = Self(1 << 3);
 
+    /// Creates a wrapper mirroring `CKRecordZoneCapabilities`.
     pub const fn new(bits: u64) -> Self {
         Self(bits)
     }
 
+    /// Mirrors `CKRecordZoneCapabilities.rawValue`.
     pub const fn bits(self) -> u64 {
         self.0
     }
 
+    /// Mirrors `CKRecordZoneCapabilities.contains(_:)`.
     pub const fn contains(self, other: Self) -> bool {
         (self.0 & other.0) == other.0
     }
@@ -51,11 +59,15 @@ impl BitOrAssign for CKRecordZoneCapabilities {
     }
 }
 
+/// Mirrors `CKRecordZoneEncryptionScope`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum CKRecordZoneEncryptionScope {
+    /// Mirrors `CKRecordZoneEncryptionScope.perRecord`.
     PerRecord,
+    /// Mirrors `CKRecordZoneEncryptionScope.perZone`.
     PerZone,
+    /// Mirrors `CKRecordZoneEncryptionScope.unknown`.
     Unknown(i32),
 }
 
@@ -77,6 +89,7 @@ impl CKRecordZoneEncryptionScope {
     }
 }
 
+/// Wraps `CKRecordZoneID`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CKRecordZoneID {
     zone_name: String,
@@ -84,6 +97,7 @@ pub struct CKRecordZoneID {
 }
 
 impl CKRecordZoneID {
+    /// Creates a wrapper mirroring `CKRecordZoneID`.
     pub fn new(zone_name: impl Into<String>, owner_name: impl Into<String>) -> Self {
         Self {
             zone_name: zone_name.into(),
@@ -91,14 +105,17 @@ impl CKRecordZoneID {
         }
     }
 
+    /// Mirrors `CKRecordZoneID.defaultZone`.
     pub fn default_zone() -> Self {
         Self::new(DEFAULT_ZONE_NAME, DEFAULT_OWNER_NAME)
     }
 
+    /// Mirrors `CKRecordZoneID.zoneName`.
     pub fn zone_name(&self) -> &str {
         &self.zone_name
     }
 
+    /// Mirrors `CKRecordZoneID.ownerName`.
     pub fn owner_name(&self) -> &str {
         &self.owner_name
     }
@@ -115,6 +132,7 @@ impl CKRecordZoneID {
     }
 }
 
+/// Wraps `CKRecordID`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CKRecordID {
     record_name: String,
@@ -122,10 +140,12 @@ pub struct CKRecordID {
 }
 
 impl CKRecordID {
+    /// Creates a wrapper mirroring `CKRecordID`.
     pub fn new(record_name: impl Into<String>) -> Self {
         Self::with_zone(record_name, CKRecordZoneID::default_zone())
     }
 
+    /// Sets the value mirroring `CKRecordID.zone`.
     pub fn with_zone(record_name: impl Into<String>, zone_id: CKRecordZoneID) -> Self {
         Self {
             record_name: record_name.into(),
@@ -133,10 +153,12 @@ impl CKRecordID {
         }
     }
 
+    /// Mirrors `CKRecordID.recordName`.
     pub fn record_name(&self) -> &str {
         &self.record_name
     }
 
+    /// Mirrors `CKRecordID.zoneID`.
     pub fn zone_id(&self) -> &CKRecordZoneID {
         &self.zone_id
     }
@@ -156,18 +178,21 @@ impl CKRecordID {
     }
 }
 
+/// Wraps `CKAsset`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CKAsset {
     file_url: PathBuf,
 }
 
 impl CKAsset {
+    /// Creates a wrapper mirroring `CKAsset`.
     pub fn new(path: impl Into<PathBuf>) -> Self {
         Self {
             file_url: path.into(),
         }
     }
 
+    /// Mirrors `CKAsset.fileURL`.
     pub fn file_url(&self) -> &Path {
         &self.file_url
     }
@@ -183,17 +208,27 @@ impl CKAsset {
     }
 }
 
+/// Mirrors the typed field values stored by `CKRecord`.
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
 pub enum RecordValue {
+    /// Mirrors `CKRecord.string`.
     String(String),
+    /// Mirrors `CKRecord.int`.
     Int(i64),
+    /// Mirrors `CKRecord.double`.
     Double(f64),
+    /// Mirrors `CKRecord.bool`.
     Bool(bool),
+    /// Mirrors `CKRecord.bytes`.
     Bytes(Vec<u8>),
+    /// Mirrors `CKRecord.date`.
     Date(String),
+    /// Mirrors `CKRecord.asset`.
     Asset(CKAsset),
+    /// Mirrors `CKRecord.reference`.
     Reference(CKReference),
+    /// Mirrors `CKRecord.array`.
     Array(Vec<RecordValue>),
 }
 
@@ -404,6 +439,7 @@ impl RecordValue {
     }
 }
 
+/// Wraps `CKRecordZone`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CKRecordZone {
     zone_id: CKRecordZoneID,
@@ -413,6 +449,7 @@ pub struct CKRecordZone {
 }
 
 impl CKRecordZone {
+    /// Creates a wrapper mirroring `CKRecordZone`.
     pub fn new(zone_name: impl Into<String>) -> Self {
         Self {
             zone_id: CKRecordZoneID::new(zone_name, DEFAULT_OWNER_NAME),
@@ -422,6 +459,7 @@ impl CKRecordZone {
         }
     }
 
+    /// Sets the value mirroring `CKRecordZone.zoneID`.
     pub fn with_zone_id(zone_id: CKRecordZoneID) -> Self {
         Self {
             zone_id,
@@ -431,22 +469,27 @@ impl CKRecordZone {
         }
     }
 
+    /// Mirrors `CKRecordZone.defaultZone`.
     pub fn default_zone() -> Self {
         Self::with_zone_id(CKRecordZoneID::default_zone())
     }
 
+    /// Mirrors `CKRecordZone.zoneID`.
     pub fn zone_id(&self) -> &CKRecordZoneID {
         &self.zone_id
     }
 
+    /// Mirrors `CKRecordZone.capabilities`.
     pub const fn capabilities(&self) -> CKRecordZoneCapabilities {
         self.capabilities
     }
 
+    /// Mirrors `CKRecordZone.share`.
     pub const fn share(&self) -> Option<&CKReference> {
         self.share.as_ref()
     }
 
+    /// Mirrors `CKRecordZone.encryptionScope`.
     pub const fn encryption_scope(&self) -> Option<CKRecordZoneEncryptionScope> {
         self.encryption_scope
     }
@@ -474,6 +517,7 @@ impl CKRecordZone {
     }
 }
 
+/// Wraps `CKRecord`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CKRecord {
     record_type: String,
@@ -492,6 +536,7 @@ pub struct CKRecord {
 }
 
 impl CKRecord {
+    /// Creates a wrapper mirroring `CKRecord`.
     pub fn new(record_type: &str) -> Result<Self, CloudKitError> {
         let record_type = cstring_from_str(record_type, "record type")?;
         let mut out_json: *mut c_char = core::ptr::null_mut();
@@ -505,6 +550,7 @@ impl CKRecord {
         Ok(Self::from_payload(payload))
     }
 
+    /// Sets the value mirroring `CKRecord.recordID`.
     pub fn with_record_id(record_type: impl Into<String>, record_id: CKRecordID) -> Self {
         Self {
             record_type: record_type.into(),
@@ -523,58 +569,72 @@ impl CKRecord {
         }
     }
 
+    /// Sets the value mirroring `CKRecord.zone`.
     pub fn with_zone(record_type: impl Into<String>, zone_id: CKRecordZoneID) -> Self {
         Self::with_record_id(record_type, CKRecordID::with_zone(String::new(), zone_id))
     }
 
+    /// Mirrors `CKRecord.recordType`.
     pub fn record_type(&self) -> &str {
         &self.record_type
     }
 
+    /// Mirrors `CKRecord.recordID`.
     pub fn record_id(&self) -> &CKRecordID {
         &self.record_id
     }
 
+    /// Mirrors `CKRecord.recordChangeTag`.
     pub fn record_change_tag(&self) -> Option<&str> {
         self.record_change_tag.as_deref()
     }
 
+    /// Mirrors `CKRecord.creatorUserRecordID`.
     pub const fn creator_user_record_id(&self) -> Option<&CKRecordID> {
         self.creator_user_record_id.as_ref()
     }
 
+    /// Mirrors `CKRecord.creationDate`.
     pub fn creation_date(&self) -> Option<&str> {
         self.creation_date.as_deref()
     }
 
+    /// Mirrors `CKRecord.lastModifiedUserRecordID`.
     pub const fn last_modified_user_record_id(&self) -> Option<&CKRecordID> {
         self.last_modified_user_record_id.as_ref()
     }
 
+    /// Mirrors `CKRecord.modificationDate`.
     pub fn modification_date(&self) -> Option<&str> {
         self.modification_date.as_deref()
     }
 
+    /// Mirrors `CKRecord.parent`.
     pub const fn parent(&self) -> Option<&CKReference> {
         self.parent.as_ref()
     }
 
+    /// Mirrors `CKRecord.share`.
     pub const fn share(&self) -> Option<&CKReference> {
         self.share.as_ref()
     }
 
+    /// Mirrors `CKRecord.changedKeys`.
     pub fn changed_keys(&self) -> &[String] {
         &self.changed_keys
     }
 
+    /// Mirrors `CKRecord.allTokens`.
     pub fn all_tokens(&self) -> &[String] {
         &self.all_tokens
     }
 
+    /// Mirrors `CKRecord.object`.
     pub fn object(&self, key: &str) -> Option<&RecordValue> {
         self.fields.get(key)
     }
 
+    /// Mirrors `CKRecord.setObject`.
     pub fn set_object<V>(&mut self, key: &str, value: V)
     where
         V: Into<RecordValue>,
@@ -583,6 +643,7 @@ impl CKRecord {
         self.mark_changed_key(key);
     }
 
+    /// Mirrors `CKRecord.removeObject`.
     pub fn remove_object(&mut self, key: &str) -> Option<RecordValue> {
         let removed = self.fields.remove(key);
         if removed.is_some() {
@@ -591,18 +652,22 @@ impl CKRecord {
         removed
     }
 
+    /// Mirrors `CKRecord.allKeys`.
     pub fn all_keys(&self) -> Vec<String> {
         self.fields.keys().cloned().collect()
     }
 
+    /// Mirrors `CKRecord.encodedSystemFields`.
     pub fn encoded_system_fields(&self) -> &[u8] {
         &self.encoded_system_fields
     }
 
+    /// Mirrors `CKRecord.setParentReference`.
     pub fn set_parent_reference(&mut self, reference: CKReference) {
         self.parent = Some(reference);
     }
 
+    /// Mirrors `CKRecord.setParentReferenceFromRecord`.
     pub fn set_parent_reference_from_record(&mut self, parent_record: &CKRecord) {
         self.set_parent_reference(CKReference::new(
             parent_record.record_id().clone(),
@@ -610,10 +675,12 @@ impl CKRecord {
         ));
     }
 
+    /// Mirrors `CKRecord.setParentReferenceFromRecordID`.
     pub fn set_parent_reference_from_record_id(&mut self, parent_record_id: CKRecordID) {
         self.set_parent_reference(CKReference::new(parent_record_id, CKReferenceAction::None));
     }
 
+    /// Mirrors `CKRecord.clearParentReference`.
     pub fn clear_parent_reference(&mut self) {
         self.parent = None;
     }
@@ -677,16 +744,23 @@ impl CKRecord {
     }
 }
 
+/// Accepts values that map to `CKRecord` fields.
 pub trait CKRecordKeyValueSetting {
+    /// Mirrors `CKRecord.objectForKey`.
     fn object_for_key(&self, key: &str) -> Option<&RecordValue>;
+    /// Mirrors `CKRecord.setObjectForKey`.
     fn set_object_for_key<V>(&mut self, key: &str, value: V)
     where
         V: Into<RecordValue>;
+    /// Mirrors `CKRecord.objectForKeyedSubscript`.
     fn object_for_keyed_subscript(&self, key: &str) -> Option<&RecordValue>;
+    /// Mirrors `CKRecord.setObjectForKeyedSubscript`.
     fn set_object_for_keyed_subscript<V>(&mut self, key: &str, value: V)
     where
         V: Into<RecordValue>;
+    /// Mirrors `CKRecord.allKeys`.
     fn all_keys(&self) -> Vec<String>;
+    /// Mirrors `CKRecord.changedKeys`.
     fn changed_keys(&self) -> &[String];
 }
 

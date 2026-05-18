@@ -9,13 +9,19 @@ use crate::private::{
 use crate::record::{CKRecord, CKRecordID, CKRecordZoneID};
 use crate::user_identity::CKUserIdentity;
 
+/// Mirrors `CKShareParticipantAcceptanceStatus`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum CKShareParticipantAcceptanceStatus {
+    /// Mirrors `CKShareParticipantAcceptanceStatus.unknown`.
     Unknown,
+    /// Mirrors `CKShareParticipantAcceptanceStatus.pending`.
     Pending,
+    /// Mirrors `CKShareParticipantAcceptanceStatus.accepted`.
     Accepted,
+    /// Mirrors `CKShareParticipantAcceptanceStatus.removed`.
     Removed,
+    /// Mirrors `CKShareParticipantAcceptanceStatus.unknownValue`.
     UnknownValue(i32),
 }
 
@@ -31,13 +37,19 @@ impl CKShareParticipantAcceptanceStatus {
     }
 }
 
+/// Mirrors `CKShareParticipantPermission`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum CKShareParticipantPermission {
+    /// Mirrors `CKShareParticipantPermission.unknown`.
     Unknown,
+    /// Mirrors `CKShareParticipantPermission.none`.
     None,
+    /// Mirrors `CKShareParticipantPermission.readOnly`.
     ReadOnly,
+    /// Mirrors `CKShareParticipantPermission.readWrite`.
     ReadWrite,
+    /// Mirrors `CKShareParticipantPermission.unknownValue`.
     UnknownValue(i32),
 }
 
@@ -63,14 +75,21 @@ impl CKShareParticipantPermission {
     }
 }
 
+/// Mirrors `CKShareParticipantRole`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum CKShareParticipantRole {
+    /// Mirrors `CKShareParticipantRole.unknown`.
     Unknown,
+    /// Mirrors `CKShareParticipantRole.owner`.
     Owner,
+    /// Mirrors `CKShareParticipantRole.administrator`.
     Administrator,
+    /// Mirrors `CKShareParticipantRole.privateUser`.
     PrivateUser,
+    /// Mirrors `CKShareParticipantRole.publicUser`.
     PublicUser,
+    /// Mirrors `CKShareParticipantRole.unknownValue`.
     UnknownValue(i32),
 }
 
@@ -87,6 +106,7 @@ impl CKShareParticipantRole {
     }
 }
 
+/// Wraps `CKShareParticipant`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CKShareParticipant {
     archived_data: Vec<u8>,
@@ -100,6 +120,7 @@ pub struct CKShareParticipant {
 }
 
 impl CKShareParticipant {
+    /// Mirrors `CKShareParticipant.oneTimeURLParticipant`.
     pub fn one_time_url_participant() -> Result<Self, CloudKitError> {
         let mut out_json: *mut c_char = ptr::null_mut();
         let mut out_error: *mut c_char = ptr::null_mut();
@@ -113,34 +134,42 @@ impl CKShareParticipant {
         Ok(Self::from_payload(payload))
     }
 
+    /// Mirrors archived data stored by `CKShareParticipant`.
     pub fn archived_data(&self) -> &[u8] {
         &self.archived_data
     }
 
+    /// Mirrors `CKShareParticipant.userIDentity`.
     pub fn user_identity(&self) -> &CKUserIdentity {
         &self.user_identity
     }
 
+    /// Mirrors `CKShareParticipant.role`.
     pub const fn role(&self) -> Option<CKShareParticipantRole> {
         self.role
     }
 
+    /// Mirrors `CKShareParticipant.permission`.
     pub const fn permission(&self) -> CKShareParticipantPermission {
         self.permission
     }
 
+    /// Mirrors `CKShareParticipant.acceptanceStatus`.
     pub const fn acceptance_status(&self) -> CKShareParticipantAcceptanceStatus {
         self.acceptance_status
     }
 
+    /// Mirrors `CKShareParticipant.participantID`.
     pub fn participant_id(&self) -> &str {
         &self.participant_id
     }
 
+    /// Mirrors `CKShareParticipant.isApprovedRequester`.
     pub const fn is_approved_requester(&self) -> Option<bool> {
         self.is_approved_requester
     }
 
+    /// Mirrors `CKShareParticipant.dateAddedToShare`.
     pub fn date_added_to_share(&self) -> Option<&str> {
         self.date_added_to_share.as_deref()
     }
@@ -203,6 +232,7 @@ impl CKShareParticipant {
     }
 }
 
+/// Wraps `CKShare`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CKShare {
     share_record: CKRecord,
@@ -221,6 +251,7 @@ pub struct CKShare {
 }
 
 impl CKShare {
+    /// Mirrors `CKShare.newRootRecord`.
     pub fn new_root_record(root_record: &CKRecord) -> Result<Self, CloudKitError> {
         let root_record_json = json_cstring(&root_record.to_payload(), "root record")?;
         let mut out_json: *mut c_char = ptr::null_mut();
@@ -239,6 +270,7 @@ impl CKShare {
         Ok(Self::from_payload(payload))
     }
 
+    /// Mirrors `CKShare.newZoneWide`.
     pub fn new_zone_wide(zone_id: CKRecordZoneID) -> Result<Self, CloudKitError> {
         let zone_json = json_cstring(&zone_id.to_payload(), "zone ID")?;
         let mut out_json: *mut c_char = ptr::null_mut();
@@ -253,62 +285,77 @@ impl CKShare {
         Ok(Self::from_payload(payload))
     }
 
+    /// Mirrors `CKShare.shareRecord`.
     pub fn share_record(&self) -> &CKRecord {
         &self.share_record
     }
 
+    /// Mirrors `CKShare.rootRecord`.
     pub const fn root_record(&self) -> Option<&CKRecord> {
         self.root_record.as_ref()
     }
 
+    /// Mirrors `CKShare.zoneID`.
     pub fn zone_id(&self) -> &CKRecordZoneID {
         &self.zone_id
     }
 
+    /// Mirrors `CKShare.publicPermission`.
     pub const fn public_permission(&self) -> CKShareParticipantPermission {
         self.public_permission
     }
 
+    /// Mirrors `CKShare.url`.
     pub fn url(&self) -> Option<&str> {
         self.url.as_deref()
     }
 
+    /// Mirrors `CKShare.participants`.
     pub fn participants(&self) -> &[CKShareParticipant] {
         &self.participants
     }
 
+    /// Mirrors `CKShare.owner`.
     pub const fn owner(&self) -> Option<&CKShareParticipant> {
         self.owner.as_ref()
     }
 
+    /// Mirrors `CKShare.currentUserParticipant`.
     pub const fn current_user_participant(&self) -> Option<&CKShareParticipant> {
         self.current_user_participant.as_ref()
     }
 
+    /// Mirrors `CKShare.title`.
     pub fn title(&self) -> Option<&str> {
         self.title.as_deref()
     }
 
+    /// Mirrors `CKShare.thumbnailImageData`.
     pub fn thumbnail_image_data(&self) -> Option<&[u8]> {
         self.thumbnail_image_data.as_deref()
     }
 
+    /// Mirrors `CKShare.shareType`.
     pub fn share_type(&self) -> Option<&str> {
         self.share_type.as_deref()
     }
 
+    /// Mirrors `CKShare.allowsAccessRequests`.
     pub const fn allows_access_requests(&self) -> Option<bool> {
         self.allows_access_requests
     }
 
+    /// Mirrors `CKShare.isZoneWide`.
     pub const fn is_zone_wide(&self) -> bool {
         self.is_zone_wide
     }
 
+    /// Mirrors `CKShare.asRecord`.
     pub fn as_record(&self) -> CKRecord {
         self.share_record.clone()
     }
 
+    /// Sets the value mirroring `CKShare.publicPermission`.
     pub fn with_public_permission(
         mut self,
         public_permission: CKShareParticipantPermission,
@@ -317,11 +364,13 @@ impl CKShare {
         self.normalize()
     }
 
+    /// Sets the value mirroring `CKShare.title`.
     pub fn with_title(mut self, title: impl Into<String>) -> Result<Self, CloudKitError> {
         self.title = Some(title.into());
         self.normalize()
     }
 
+    /// Sets the value mirroring `CKShare.thumbnailImageData`.
     pub fn with_thumbnail_image_data(
         mut self,
         thumbnail_image_data: Vec<u8>,
@@ -330,11 +379,13 @@ impl CKShare {
         self.normalize()
     }
 
+    /// Sets the value mirroring `CKShare.shareType`.
     pub fn with_share_type(mut self, share_type: impl Into<String>) -> Result<Self, CloudKitError> {
         self.share_type = Some(share_type.into());
         self.normalize()
     }
 
+    /// Sets the value mirroring `CKShare.allowsAccessRequests`.
     pub fn with_allows_access_requests(
         mut self,
         allows_access_requests: bool,
@@ -343,6 +394,7 @@ impl CKShare {
         self.normalize()
     }
 
+    /// Mirrors `CKShare.addParticipant`.
     pub fn add_participant(
         mut self,
         participant: CKShareParticipant,
@@ -351,6 +403,7 @@ impl CKShare {
         self.normalize()
     }
 
+    /// Mirrors `CKShare.removeParticipant`.
     pub fn remove_participant(mut self, participant_id: &str) -> Result<Self, CloudKitError> {
         self.participants
             .retain(|participant| participant.participant_id() != participant_id);
@@ -420,13 +473,19 @@ impl CKShare {
     }
 }
 
+/// Mirrors `CKShareParticipantType`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum CKShareParticipantType {
+    /// Mirrors `CKShareParticipantType.unknown`.
     Unknown,
+    /// Mirrors `CKShareParticipantType.owner`.
     Owner,
+    /// Mirrors `CKShareParticipantType.privateUser`.
     PrivateUser,
+    /// Mirrors `CKShareParticipantType.publicUser`.
     PublicUser,
+    /// Mirrors `CKShareParticipantType.unknownValue`.
     UnknownValue(i32),
 }
 
@@ -443,6 +502,7 @@ impl CKShareParticipantType {
 }
 
 impl CKShareParticipant {
+    /// Mirrors `CKShareParticipant.participantType`.
     pub const fn participant_type(&self) -> CKShareParticipantType {
         match self.role {
             Some(CKShareParticipantRole::Owner) => CKShareParticipantType::Owner,
@@ -456,18 +516,24 @@ impl CKShareParticipant {
     }
 }
 
+/// Wraps `CKSharingParticipantAccessOption`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct CKSharingParticipantAccessOption(u64);
 
 impl CKSharingParticipantAccessOption {
+    /// Mirrors the `anyoneWithLink` option on `CKSharingParticipantAccessOption`.
     pub const ANYONE_WITH_LINK: Self = Self(1 << 0);
+    /// Mirrors the `specifiedRecipientsOnly` option on `CKSharingParticipantAccessOption`.
     pub const SPECIFIED_RECIPIENTS_ONLY: Self = Self(1 << 1);
+    /// Mirrors the `any` option on `CKSharingParticipantAccessOption`.
     pub const ANY: Self = Self(Self::ANYONE_WITH_LINK.0 | Self::SPECIFIED_RECIPIENTS_ONLY.0);
 
+    /// Mirrors `CKSharingParticipantAccessOption.rawValue`.
     pub const fn bits(self) -> u64 {
         self.0
     }
 
+    /// Mirrors `CKSharingParticipantAccessOption.contains(_:)`.
     pub const fn contains(self, other: Self) -> bool {
         (self.0 & other.0) == other.0
     }
@@ -487,18 +553,24 @@ impl core::ops::BitOrAssign for CKSharingParticipantAccessOption {
     }
 }
 
+/// Wraps `CKSharingParticipantPermissionOption`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct CKSharingParticipantPermissionOption(u64);
 
 impl CKSharingParticipantPermissionOption {
+    /// Mirrors the `readOnly` option on `CKSharingParticipantPermissionOption`.
     pub const READ_ONLY: Self = Self(1 << 0);
+    /// Mirrors the `readWrite` option on `CKSharingParticipantPermissionOption`.
     pub const READ_WRITE: Self = Self(1 << 1);
+    /// Mirrors the `any` option on `CKSharingParticipantPermissionOption`.
     pub const ANY: Self = Self(Self::READ_ONLY.0 | Self::READ_WRITE.0);
 
+    /// Mirrors `CKSharingParticipantPermissionOption.rawValue`.
     pub const fn bits(self) -> u64 {
         self.0
     }
 
+    /// Mirrors `CKSharingParticipantPermissionOption.contains(_:)`.
     pub const fn contains(self, other: Self) -> bool {
         (self.0 & other.0) == other.0
     }
@@ -518,6 +590,7 @@ impl core::ops::BitOrAssign for CKSharingParticipantPermissionOption {
     }
 }
 
+/// Wraps `CKAllowedSharingOptions`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CKAllowedSharingOptions {
     allowed_participant_permission_options: CKSharingParticipantPermissionOption,
@@ -525,6 +598,7 @@ pub struct CKAllowedSharingOptions {
 }
 
 impl CKAllowedSharingOptions {
+    /// Creates a wrapper mirroring `CKAllowedSharingOptions`.
     pub fn new(
         allowed_participant_permission_options: CKSharingParticipantPermissionOption,
         allowed_participant_access_options: CKSharingParticipantAccessOption,
@@ -535,6 +609,7 @@ impl CKAllowedSharingOptions {
         }
     }
 
+    /// Mirrors `CKAllowedSharingOptions.standard`.
     pub fn standard() -> Self {
         Self::new(
             CKSharingParticipantPermissionOption::ANY,
@@ -542,12 +617,14 @@ impl CKAllowedSharingOptions {
         )
     }
 
+    /// Mirrors `CKAllowedSharingOptions.allowedParticipantPermissionOptions`.
     pub const fn allowed_participant_permission_options(
         &self,
     ) -> CKSharingParticipantPermissionOption {
         self.allowed_participant_permission_options
     }
 
+    /// Mirrors `CKAllowedSharingOptions.allowedParticipantAccessOptions`.
     pub const fn allowed_participant_access_options(&self) -> CKSharingParticipantAccessOption {
         self.allowed_participant_access_options
     }
@@ -559,6 +636,7 @@ impl Default for CKAllowedSharingOptions {
     }
 }
 
+/// Wraps `CKShareAccessRequester`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CKShareAccessRequester {
     user_identity: CKUserIdentity,
@@ -567,6 +645,7 @@ pub struct CKShareAccessRequester {
 }
 
 impl CKShareAccessRequester {
+    /// Creates a wrapper mirroring `CKShareAccessRequester`.
     pub fn new(
         user_identity: CKUserIdentity,
         participant_lookup_info: crate::user_identity::CKUserIdentityLookupInfo,
@@ -578,24 +657,29 @@ impl CKShareAccessRequester {
         }
     }
 
+    /// Mirrors `CKShareAccessRequester.userIDentity`.
     pub const fn user_identity(&self) -> &CKUserIdentity {
         &self.user_identity
     }
 
+    /// Mirrors `CKShareAccessRequester.participantLookupInfo`.
     pub const fn participant_lookup_info(&self) -> &crate::user_identity::CKUserIdentityLookupInfo {
         &self.participant_lookup_info
     }
 
+    /// Mirrors `CKShareAccessRequester.contactDisplayName`.
     pub fn contact_display_name(&self) -> Option<&str> {
         self.contact_display_name.as_deref()
     }
 
+    /// Sets the value mirroring `CKShareAccessRequester.contactDisplayName`.
     pub fn with_contact_display_name(mut self, contact_display_name: impl Into<String>) -> Self {
         self.contact_display_name = Some(contact_display_name.into());
         self
     }
 }
 
+/// Wraps `CKShareBlockedIdentity`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CKShareBlockedIdentity {
     user_identity: CKUserIdentity,
@@ -603,6 +687,7 @@ pub struct CKShareBlockedIdentity {
 }
 
 impl CKShareBlockedIdentity {
+    /// Creates a wrapper mirroring `CKShareBlockedIdentity`.
     pub fn new(user_identity: CKUserIdentity) -> Self {
         Self {
             user_identity,
@@ -610,20 +695,24 @@ impl CKShareBlockedIdentity {
         }
     }
 
+    /// Mirrors `CKShareBlockedIdentity.userIDentity`.
     pub const fn user_identity(&self) -> &CKUserIdentity {
         &self.user_identity
     }
 
+    /// Mirrors `CKShareBlockedIdentity.contactDisplayName`.
     pub fn contact_display_name(&self) -> Option<&str> {
         self.contact_display_name.as_deref()
     }
 
+    /// Sets the value mirroring `CKShareBlockedIdentity.contactDisplayName`.
     pub fn with_contact_display_name(mut self, contact_display_name: impl Into<String>) -> Self {
         self.contact_display_name = Some(contact_display_name.into());
         self
     }
 }
 
+/// Wraps `CKShareMetadata`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CKShareMetadata {
     archived_data: Vec<u8>,
@@ -640,6 +729,7 @@ pub struct CKShareMetadata {
 }
 
 impl CKShareMetadata {
+    /// Creates a wrapper mirroring `CKShareMetadata`.
     pub fn new(
         container_identifier: impl Into<String>,
         share: CKShare,
@@ -664,55 +754,68 @@ impl CKShareMetadata {
         }
     }
 
+    /// Mirrors archived data stored by `CKShareMetadata`.
     pub fn archived_data(&self) -> &[u8] {
         &self.archived_data
     }
 
+    /// Mirrors `CKShareMetadata.containerIdentifier`.
     pub fn container_identifier(&self) -> &str {
         &self.container_identifier
     }
 
+    /// Mirrors `CKShareMetadata.share`.
     pub const fn share(&self) -> &CKShare {
         &self.share
     }
 
+    /// Mirrors `CKShareMetadata.hierarchicalRootRecordID`.
     pub const fn hierarchical_root_record_id(&self) -> Option<&CKRecordID> {
         self.hierarchical_root_record_id.as_ref()
     }
 
+    /// Mirrors `CKShareMetadata.participantRole`.
     pub const fn participant_role(&self) -> Option<CKShareParticipantRole> {
         self.participant_role
     }
 
+    /// Mirrors `CKShareMetadata.participantStatus`.
     pub const fn participant_status(&self) -> CKShareParticipantAcceptanceStatus {
         self.participant_status
     }
 
+    /// Mirrors `CKShareMetadata.participantPermission`.
     pub const fn participant_permission(&self) -> CKShareParticipantPermission {
         self.participant_permission
     }
 
+    /// Mirrors `CKShareMetadata.ownerIDentity`.
     pub const fn owner_identity(&self) -> &CKUserIdentity {
         &self.owner_identity
     }
 
+    /// Mirrors `CKShareMetadata.rootRecord`.
     pub const fn root_record(&self) -> Option<&CKRecord> {
         self.root_record.as_ref()
     }
 
+    /// Mirrors `CKShareMetadata.participantType`.
     pub const fn participant_type(&self) -> Option<CKShareParticipantType> {
         self.participant_type
     }
 
+    /// Mirrors `CKShareMetadata.rootRecordID`.
     pub const fn root_record_id(&self) -> Option<&CKRecordID> {
         self.root_record_id.as_ref()
     }
 
+    /// Sets the value mirroring `CKShareMetadata.archivedData`.
     pub fn with_archived_data(mut self, archived_data: Vec<u8>) -> Self {
         self.archived_data = archived_data;
         self
     }
 
+    /// Sets the value mirroring `CKShareMetadata.hierarchicalRootRecordID`.
     pub fn with_hierarchical_root_record_id(
         mut self,
         hierarchical_root_record_id: CKRecordID,
@@ -721,11 +824,13 @@ impl CKShareMetadata {
         self
     }
 
+    /// Sets the value mirroring `CKShareMetadata.participantRole`.
     pub fn with_participant_role(mut self, participant_role: CKShareParticipantRole) -> Self {
         self.participant_role = Some(participant_role);
         self
     }
 
+    /// Sets the value mirroring `CKShareMetadata.participantStatus`.
     pub fn with_participant_status(
         mut self,
         participant_status: CKShareParticipantAcceptanceStatus,
@@ -734,6 +839,7 @@ impl CKShareMetadata {
         self
     }
 
+    /// Sets the value mirroring `CKShareMetadata.participantPermission`.
     pub fn with_participant_permission(
         mut self,
         participant_permission: CKShareParticipantPermission,
@@ -742,17 +848,20 @@ impl CKShareMetadata {
         self
     }
 
+    /// Sets the value mirroring `CKShareMetadata.rootRecord`.
     pub fn with_root_record(mut self, root_record: CKRecord) -> Self {
         self.root_record_id = Some(root_record.record_id().clone());
         self.root_record = Some(root_record);
         self
     }
 
+    /// Sets the value mirroring `CKShareMetadata.participantType`.
     pub fn with_participant_type(mut self, participant_type: CKShareParticipantType) -> Self {
         self.participant_type = Some(participant_type);
         self
     }
 
+    /// Sets the value mirroring `CKShareMetadata.rootRecordID`.
     pub fn with_root_record_id(mut self, root_record_id: CKRecordID) -> Self {
         self.root_record_id = Some(root_record_id);
         self
@@ -841,13 +950,16 @@ impl CKShareMetadata {
     }
 }
 
+/// Mirrors the save-share callback used by `CKSystemSharingUIObserver`.
 pub type CKSystemSharingUIDidSaveShareHandler = dyn Fn(&CKRecordID, Option<&CKShare>, Option<&crate::error::CloudKitError>)
     + Send
     + Sync
     + 'static;
+/// Mirrors the stop-sharing callback used by `CKSystemSharingUIObserver`.
 pub type CKSystemSharingUIDidStopSharingHandler =
     dyn Fn(&CKRecordID, Option<&crate::error::CloudKitError>) + Send + Sync + 'static;
 
+/// Wraps `CKSystemSharingUIObserver`.
 #[derive(Clone)]
 pub struct CKSystemSharingUIObserver {
     container: crate::container::CKContainer,
@@ -864,6 +976,7 @@ impl core::fmt::Debug for CKSystemSharingUIObserver {
 }
 
 impl CKSystemSharingUIObserver {
+    /// Creates a wrapper mirroring `CKSystemSharingUIObserver`.
     pub fn new(container: crate::container::CKContainer) -> Self {
         Self {
             container,
@@ -872,10 +985,12 @@ impl CKSystemSharingUIObserver {
         }
     }
 
+    /// Mirrors `CKSystemSharingUIObserver.container`.
     pub const fn container(&self) -> &crate::container::CKContainer {
         &self.container
     }
 
+    /// Sets the value mirroring `CKSystemSharingUIObserver.didSaveShareHandler`.
     pub fn with_did_save_share_handler<F>(mut self, handler: F) -> Self
     where
         F: Fn(&CKRecordID, Option<&CKShare>, Option<&crate::error::CloudKitError>)
@@ -887,6 +1002,7 @@ impl CKSystemSharingUIObserver {
         self
     }
 
+    /// Sets the value mirroring `CKSystemSharingUIObserver.didStopSharingHandler`.
     pub fn with_did_stop_sharing_handler<F>(mut self, handler: F) -> Self
     where
         F: Fn(&CKRecordID, Option<&crate::error::CloudKitError>) + Send + Sync + 'static,
@@ -895,6 +1011,7 @@ impl CKSystemSharingUIObserver {
         self
     }
 
+    /// Mirrors `CKSystemSharingUIObserver.notifyDidSaveShare`.
     pub fn notify_did_save_share(
         &self,
         record_id: &CKRecordID,
@@ -906,6 +1023,7 @@ impl CKSystemSharingUIObserver {
         }
     }
 
+    /// Mirrors `CKSystemSharingUIObserver.notifyDidStopSharing`.
     pub fn notify_did_stop_sharing(
         &self,
         record_id: &CKRecordID,

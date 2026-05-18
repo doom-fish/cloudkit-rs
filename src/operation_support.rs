@@ -25,15 +25,22 @@ fn next_identifier(prefix: &str) -> String {
     )
 }
 
+/// Mirrors `CKQualityOfService`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CKQualityOfService {
+    /// Mirrors `CKQualityOfService.userInteractive`.
     UserInteractive,
+    /// Mirrors `CKQualityOfService.userInitiated`.
     UserInitiated,
+    /// Mirrors `CKQualityOfService.default`.
     Default,
+    /// Mirrors `CKQualityOfService.utility`.
     Utility,
+    /// Mirrors `CKQualityOfService.background`.
     Background,
 }
 
+/// Wraps `CKOperationConfiguration`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CKOperationConfiguration {
     container: Option<CKContainer>,
@@ -45,6 +52,7 @@ pub struct CKOperationConfiguration {
 }
 
 impl CKOperationConfiguration {
+    /// Creates a wrapper mirroring `CKOperationConfiguration`.
     pub fn new() -> Self {
         Self {
             container: None,
@@ -56,55 +64,67 @@ impl CKOperationConfiguration {
         }
     }
 
+    /// Mirrors `CKOperationConfiguration.container`.
     pub const fn container(&self) -> Option<&CKContainer> {
         self.container.as_ref()
     }
 
+    /// Mirrors `CKOperationConfiguration.qualityOfService`.
     pub const fn quality_of_service(&self) -> CKQualityOfService {
         self.quality_of_service
     }
 
+    /// Mirrors `CKOperationConfiguration.allowsCellularAccess`.
     pub const fn allows_cellular_access(&self) -> bool {
         self.allows_cellular_access
     }
 
+    /// Mirrors `CKOperationConfiguration.longLived`.
     pub const fn long_lived(&self) -> bool {
         self.long_lived
     }
 
+    /// Mirrors `CKOperationConfiguration.timeoutIntervalForRequest`.
     pub const fn timeout_interval_for_request(&self) -> f64 {
         self.timeout_interval_for_request
     }
 
+    /// Mirrors `CKOperationConfiguration.timeoutIntervalForResource`.
     pub const fn timeout_interval_for_resource(&self) -> f64 {
         self.timeout_interval_for_resource
     }
 
+    /// Sets the value mirroring `CKOperationConfiguration.container`.
     pub fn with_container(mut self, container: CKContainer) -> Self {
         self.container = Some(container);
         self
     }
 
+    /// Sets the value mirroring `CKOperationConfiguration.qualityOfService`.
     pub fn with_quality_of_service(mut self, quality_of_service: CKQualityOfService) -> Self {
         self.quality_of_service = quality_of_service;
         self
     }
 
+    /// Sets the value mirroring `CKOperationConfiguration.allowsCellularAccess`.
     pub fn with_allows_cellular_access(mut self, allows_cellular_access: bool) -> Self {
         self.allows_cellular_access = allows_cellular_access;
         self
     }
 
+    /// Sets the value mirroring `CKOperationConfiguration.longLived`.
     pub fn with_long_lived(mut self, long_lived: bool) -> Self {
         self.long_lived = long_lived;
         self
     }
 
+    /// Sets the value mirroring `CKOperationConfiguration.timeoutIntervalForRequest`.
     pub fn with_timeout_interval_for_request(mut self, timeout_interval_for_request: f64) -> Self {
         self.timeout_interval_for_request = timeout_interval_for_request;
         self
     }
 
+    /// Sets the value mirroring `CKOperationConfiguration.timeoutIntervalForResource`.
     pub fn with_timeout_interval_for_resource(
         mut self,
         timeout_interval_for_resource: f64,
@@ -120,18 +140,28 @@ impl Default for CKOperationConfiguration {
     }
 }
 
+/// Mirrors `CKOperationGroupTransferSize`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CKOperationGroupTransferSize {
+    /// Mirrors `CKOperationGroupTransferSize.unknown`.
     Unknown,
+    /// Mirrors `CKOperationGroupTransferSize.kilobytes`.
     Kilobytes,
+    /// Mirrors `CKOperationGroupTransferSize.megabytes`.
     Megabytes,
+    /// Mirrors `CKOperationGroupTransferSize.tensOfMegabytes`.
     TensOfMegabytes,
+    /// Mirrors `CKOperationGroupTransferSize.hundredsOfMegabytes`.
     HundredsOfMegabytes,
+    /// Mirrors `CKOperationGroupTransferSize.gigabytes`.
     Gigabytes,
+    /// Mirrors `CKOperationGroupTransferSize.tensOfGigabytes`.
     TensOfGigabytes,
+    /// Mirrors `CKOperationGroupTransferSize.hundredsOfGigabytes`.
     HundredsOfGigabytes,
 }
 
+/// Wraps `CKOperationGroup`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CKOperationGroup {
     operation_group_id: String,
@@ -143,6 +173,7 @@ pub struct CKOperationGroup {
 }
 
 impl CKOperationGroup {
+    /// Creates a wrapper mirroring `CKOperationGroup`.
     pub fn new() -> Self {
         Self {
             operation_group_id: next_identifier("operation-group"),
@@ -154,30 +185,37 @@ impl CKOperationGroup {
         }
     }
 
+    /// Mirrors `CKOperationGroup.operationGroupID`.
     pub fn operation_group_id(&self) -> &str {
         &self.operation_group_id
     }
 
+    /// Mirrors `CKOperationGroup.defaultConfiguration`.
     pub const fn default_configuration(&self) -> &CKOperationConfiguration {
         &self.default_configuration
     }
 
+    /// Mirrors `CKOperationGroup.name`.
     pub fn name(&self) -> Option<&str> {
         self.name.as_deref()
     }
 
+    /// Mirrors `CKOperationGroup.quantity`.
     pub const fn quantity(&self) -> usize {
         self.quantity
     }
 
+    /// Mirrors `CKOperationGroup.expectedSendSize`.
     pub const fn expected_send_size(&self) -> CKOperationGroupTransferSize {
         self.expected_send_size
     }
 
+    /// Mirrors `CKOperationGroup.expectedReceiveSize`.
     pub const fn expected_receive_size(&self) -> CKOperationGroupTransferSize {
         self.expected_receive_size
     }
 
+    /// Sets the value mirroring `CKOperationGroup.defaultConfiguration`.
     pub fn with_default_configuration(
         mut self,
         default_configuration: CKOperationConfiguration,
@@ -186,16 +224,19 @@ impl CKOperationGroup {
         self
     }
 
+    /// Sets the value mirroring `CKOperationGroup.name`.
     pub fn with_name(mut self, name: impl Into<String>) -> Self {
         self.name = Some(name.into());
         self
     }
 
+    /// Sets the value mirroring `CKOperationGroup.quantity`.
     pub fn with_quantity(mut self, quantity: usize) -> Self {
         self.quantity = quantity;
         self
     }
 
+    /// Sets the value mirroring `CKOperationGroup.expectedSendSize`.
     pub fn with_expected_send_size(
         mut self,
         expected_send_size: CKOperationGroupTransferSize,
@@ -204,6 +245,7 @@ impl CKOperationGroup {
         self
     }
 
+    /// Sets the value mirroring `CKOperationGroup.expectedReceiveSize`.
     pub fn with_expected_receive_size(
         mut self,
         expected_receive_size: CKOperationGroupTransferSize,
@@ -219,6 +261,7 @@ impl Default for CKOperationGroup {
     }
 }
 
+/// Wraps `CKOperation`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CKOperation {
     configuration: CKOperationConfiguration,
@@ -228,6 +271,7 @@ pub struct CKOperation {
 }
 
 impl CKOperation {
+    /// Creates a wrapper mirroring `CKOperation`.
     pub fn new() -> Self {
         Self {
             configuration: CKOperationConfiguration::default(),
@@ -237,32 +281,39 @@ impl CKOperation {
         }
     }
 
+    /// Mirrors `CKOperation.configuration`.
     pub const fn configuration(&self) -> &CKOperationConfiguration {
         &self.configuration
     }
 
+    /// Mirrors `CKOperation.group`.
     pub const fn group(&self) -> Option<&CKOperationGroup> {
         self.group.as_ref()
     }
 
+    /// Mirrors `CKOperation.operationID`.
     pub fn operation_id(&self) -> &str {
         &self.operation_id
     }
 
+    /// Mirrors `CKOperation.longLivedOperationWasPersisted`.
     pub const fn long_lived_operation_was_persisted(&self) -> bool {
         self.long_lived_operation_was_persisted
     }
 
+    /// Sets the value mirroring `CKOperation.configuration`.
     pub fn with_configuration(mut self, configuration: CKOperationConfiguration) -> Self {
         self.configuration = configuration;
         self
     }
 
+    /// Sets the value mirroring `CKOperation.group`.
     pub fn with_group(mut self, group: CKOperationGroup) -> Self {
         self.group = Some(group);
         self
     }
 
+    /// Mirrors `CKOperation.markLongLivedOperationWasPersisted`.
     pub fn mark_long_lived_operation_was_persisted(&mut self) {
         self.long_lived_operation_was_persisted = true;
     }
@@ -274,6 +325,7 @@ impl Default for CKOperation {
     }
 }
 
+/// Wraps `CKDatabaseOperation`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CKDatabaseOperation {
     operation: CKOperation,
@@ -281,6 +333,7 @@ pub struct CKDatabaseOperation {
 }
 
 impl CKDatabaseOperation {
+    /// Creates a wrapper mirroring `CKDatabaseOperation`.
     pub fn new() -> Self {
         Self {
             operation: CKOperation::default(),
@@ -288,19 +341,23 @@ impl CKDatabaseOperation {
         }
     }
 
+    /// Mirrors `CKDatabaseOperation.operation`.
     pub const fn operation(&self) -> &CKOperation {
         &self.operation
     }
 
+    /// Mirrors `CKDatabaseOperation.database`.
     pub const fn database(&self) -> Option<&CKDatabase> {
         self.database.as_ref()
     }
 
+    /// Sets the value mirroring `CKDatabaseOperation.operation`.
     pub fn with_operation(mut self, operation: CKOperation) -> Self {
         self.operation = operation;
         self
     }
 
+    /// Sets the value mirroring `CKDatabaseOperation.database`.
     pub fn with_database(mut self, database: CKDatabase) -> Self {
         self.operation = self.operation.clone().with_configuration(
             self.operation
@@ -319,20 +376,29 @@ impl Default for CKDatabaseOperation {
     }
 }
 
+/// Wraps `CKRecordZoneFetchResult`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CKRecordZoneFetchResult {
+    /// Mirrors `CKRecordZoneFetchResult.zoneID`.
     pub zone_id: CKRecordZoneID,
+    /// Mirrors `CKRecordZoneFetchResult.recordZone`.
     pub record_zone: Option<CKRecordZone>,
+    /// Mirrors `CKRecordZoneFetchResult.error`.
     pub error: Option<CloudKitError>,
 }
 
+/// Wraps `CKFetchRecordZonesResult`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CKFetchRecordZonesResult {
+    /// Mirrors `CKFetchRecordZonesResult.recordZones`.
     pub record_zones: Vec<CKRecordZone>,
+    /// Mirrors `CKFetchRecordZonesResult.results`.
     pub results: Vec<CKRecordZoneFetchResult>,
+    /// Mirrors `CKFetchRecordZonesResult.operationError`.
     pub operation_error: Option<CloudKitError>,
 }
 
+/// Wraps `CKFetchRecordZonesOperation`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CKFetchRecordZonesOperation {
     database_operation: CKDatabaseOperation,
@@ -340,6 +406,7 @@ pub struct CKFetchRecordZonesOperation {
 }
 
 impl CKFetchRecordZonesOperation {
+    /// Mirrors `CKFetchRecordZonesOperation.fetchAllRecordZonesOperation`.
     pub fn fetch_all_record_zones_operation() -> Self {
         Self {
             database_operation: CKDatabaseOperation::default(),
@@ -347,6 +414,7 @@ impl CKFetchRecordZonesOperation {
         }
     }
 
+    /// Creates a wrapper mirroring `CKFetchRecordZonesOperation`.
     pub fn new(record_zone_ids: Vec<CKRecordZoneID>) -> Self {
         Self {
             database_operation: CKDatabaseOperation::default(),
@@ -354,19 +422,23 @@ impl CKFetchRecordZonesOperation {
         }
     }
 
+    /// Mirrors `CKFetchRecordZonesOperation.databaseOperation`.
     pub const fn database_operation(&self) -> &CKDatabaseOperation {
         &self.database_operation
     }
 
+    /// Mirrors `CKFetchRecordZonesOperation.recordZoneIDs`.
     pub fn record_zone_ids(&self) -> Option<&[CKRecordZoneID]> {
         self.record_zone_ids.as_deref()
     }
 
+    /// Sets the value mirroring `CKFetchRecordZonesOperation.databaseOperation`.
     pub fn with_database_operation(mut self, database_operation: CKDatabaseOperation) -> Self {
         self.database_operation = database_operation;
         self
     }
 
+    /// Executes the corresponding `CloudKit` operation in `CKDatabase`.
     pub fn execute_in(
         &self,
         database: &CKDatabase,
@@ -409,28 +481,42 @@ impl CKFetchRecordZonesOperation {
     }
 }
 
+/// Wraps `CKRecordZoneSaveResult`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CKRecordZoneSaveResult {
+    /// Mirrors `CKRecordZoneSaveResult.zoneID`.
     pub zone_id: CKRecordZoneID,
+    /// Mirrors `CKRecordZoneSaveResult.recordZone`.
     pub record_zone: Option<CKRecordZone>,
+    /// Mirrors `CKRecordZoneSaveResult.error`.
     pub error: Option<CloudKitError>,
 }
 
+/// Wraps `CKRecordZoneDeleteResult`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CKRecordZoneDeleteResult {
+    /// Mirrors `CKRecordZoneDeleteResult.zoneID`.
     pub zone_id: CKRecordZoneID,
+    /// Mirrors `CKRecordZoneDeleteResult.error`.
     pub error: Option<CloudKitError>,
 }
 
+/// Wraps `ModifyRecordZonesResult`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ModifyRecordZonesResult {
+    /// Mirrors `ModifyRecordZonesResult.savedRecordZones`.
     pub saved_record_zones: Vec<CKRecordZone>,
+    /// Mirrors `ModifyRecordZonesResult.deletedRecordZoneIDs`.
     pub deleted_record_zone_ids: Vec<CKRecordZoneID>,
+    /// Mirrors `ModifyRecordZonesResult.saveResults`.
     pub save_results: Vec<CKRecordZoneSaveResult>,
+    /// Mirrors `ModifyRecordZonesResult.deleteResults`.
     pub delete_results: Vec<CKRecordZoneDeleteResult>,
+    /// Mirrors `ModifyRecordZonesResult.operationError`.
     pub operation_error: Option<CloudKitError>,
 }
 
+/// Wraps `CKModifyRecordZonesOperation`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CKModifyRecordZonesOperation {
     database_operation: CKDatabaseOperation,
@@ -439,6 +525,7 @@ pub struct CKModifyRecordZonesOperation {
 }
 
 impl CKModifyRecordZonesOperation {
+    /// Creates a wrapper mirroring `CKModifyRecordZonesOperation`.
     pub fn new(
         record_zones_to_save: Vec<CKRecordZone>,
         record_zone_ids_to_delete: Vec<CKRecordZoneID>,
@@ -450,23 +537,28 @@ impl CKModifyRecordZonesOperation {
         }
     }
 
+    /// Mirrors `CKModifyRecordZonesOperation.databaseOperation`.
     pub const fn database_operation(&self) -> &CKDatabaseOperation {
         &self.database_operation
     }
 
+    /// Mirrors `CKModifyRecordZonesOperation.recordZonesToSave`.
     pub fn record_zones_to_save(&self) -> &[CKRecordZone] {
         &self.record_zones_to_save
     }
 
+    /// Mirrors `CKModifyRecordZonesOperation.recordZoneIDsToDelete`.
     pub fn record_zone_ids_to_delete(&self) -> &[CKRecordZoneID] {
         &self.record_zone_ids_to_delete
     }
 
+    /// Sets the value mirroring `CKModifyRecordZonesOperation.databaseOperation`.
     pub fn with_database_operation(mut self, database_operation: CKDatabaseOperation) -> Self {
         self.database_operation = database_operation;
         self
     }
 
+    /// Executes the corresponding `CloudKit` operation in `CKDatabase`.
     pub fn execute_in(
         &self,
         database: &CKDatabase,
@@ -520,20 +612,29 @@ impl CKModifyRecordZonesOperation {
     }
 }
 
+/// Wraps `CKSubscriptionFetchResult`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CKSubscriptionFetchResult {
+    /// Mirrors `CKSubscriptionFetchResult.subscriptionID`.
     pub subscription_id: String,
+    /// Mirrors `CKSubscriptionFetchResult.subscription`.
     pub subscription: Option<CKAnySubscription>,
+    /// Mirrors `CKSubscriptionFetchResult.error`.
     pub error: Option<CloudKitError>,
 }
 
+/// Wraps `CKFetchSubscriptionsResult`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CKFetchSubscriptionsResult {
+    /// Mirrors `CKFetchSubscriptionsResult.subscriptions`.
     pub subscriptions: Vec<CKAnySubscription>,
+    /// Mirrors `CKFetchSubscriptionsResult.results`.
     pub results: Vec<CKSubscriptionFetchResult>,
+    /// Mirrors `CKFetchSubscriptionsResult.operationError`.
     pub operation_error: Option<CloudKitError>,
 }
 
+/// Wraps `CKFetchSubscriptionsOperation`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CKFetchSubscriptionsOperation {
     database_operation: CKDatabaseOperation,
@@ -541,6 +642,7 @@ pub struct CKFetchSubscriptionsOperation {
 }
 
 impl CKFetchSubscriptionsOperation {
+    /// Mirrors `CKFetchSubscriptionsOperation.fetchAllSubscriptionsOperation`.
     pub fn fetch_all_subscriptions_operation() -> Self {
         Self {
             database_operation: CKDatabaseOperation::default(),
@@ -548,6 +650,7 @@ impl CKFetchSubscriptionsOperation {
         }
     }
 
+    /// Creates a wrapper mirroring `CKFetchSubscriptionsOperation`.
     pub fn new(subscription_ids: Vec<String>) -> Self {
         Self {
             database_operation: CKDatabaseOperation::default(),
@@ -555,19 +658,23 @@ impl CKFetchSubscriptionsOperation {
         }
     }
 
+    /// Mirrors `CKFetchSubscriptionsOperation.databaseOperation`.
     pub const fn database_operation(&self) -> &CKDatabaseOperation {
         &self.database_operation
     }
 
+    /// Mirrors `CKFetchSubscriptionsOperation.subscriptionIDs`.
     pub fn subscription_ids(&self) -> Option<&[String]> {
         self.subscription_ids.as_deref()
     }
 
+    /// Sets the value mirroring `CKFetchSubscriptionsOperation.databaseOperation`.
     pub fn with_database_operation(mut self, database_operation: CKDatabaseOperation) -> Self {
         self.database_operation = database_operation;
         self
     }
 
+    /// Executes the corresponding `CloudKit` operation in `CKDatabase`.
     pub fn execute_in(
         &self,
         database: &CKDatabase,
@@ -611,28 +718,42 @@ impl CKFetchSubscriptionsOperation {
     }
 }
 
+/// Wraps `CKSubscriptionSaveResult`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CKSubscriptionSaveResult {
+    /// Mirrors `CKSubscriptionSaveResult.subscriptionID`.
     pub subscription_id: String,
+    /// Mirrors `CKSubscriptionSaveResult.subscription`.
     pub subscription: Option<CKAnySubscription>,
+    /// Mirrors `CKSubscriptionSaveResult.error`.
     pub error: Option<CloudKitError>,
 }
 
+/// Wraps `CKSubscriptionDeleteResult`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CKSubscriptionDeleteResult {
+    /// Mirrors `CKSubscriptionDeleteResult.subscriptionID`.
     pub subscription_id: String,
+    /// Mirrors `CKSubscriptionDeleteResult.error`.
     pub error: Option<CloudKitError>,
 }
 
+/// Wraps `ModifySubscriptionsResult`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ModifySubscriptionsResult {
+    /// Mirrors `ModifySubscriptionsResult.savedSubscriptions`.
     pub saved_subscriptions: Vec<CKAnySubscription>,
+    /// Mirrors `ModifySubscriptionsResult.deletedSubscriptionIDs`.
     pub deleted_subscription_ids: Vec<String>,
+    /// Mirrors `ModifySubscriptionsResult.saveResults`.
     pub save_results: Vec<CKSubscriptionSaveResult>,
+    /// Mirrors `ModifySubscriptionsResult.deleteResults`.
     pub delete_results: Vec<CKSubscriptionDeleteResult>,
+    /// Mirrors `ModifySubscriptionsResult.operationError`.
     pub operation_error: Option<CloudKitError>,
 }
 
+/// Wraps `CKModifySubscriptionsOperation`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CKModifySubscriptionsOperation {
     database_operation: CKDatabaseOperation,
@@ -641,6 +762,7 @@ pub struct CKModifySubscriptionsOperation {
 }
 
 impl CKModifySubscriptionsOperation {
+    /// Creates a wrapper mirroring `CKModifySubscriptionsOperation`.
     pub fn new(
         subscriptions_to_save: Vec<CKAnySubscription>,
         subscription_ids_to_delete: Vec<String>,
@@ -652,23 +774,28 @@ impl CKModifySubscriptionsOperation {
         }
     }
 
+    /// Mirrors `CKModifySubscriptionsOperation.databaseOperation`.
     pub const fn database_operation(&self) -> &CKDatabaseOperation {
         &self.database_operation
     }
 
+    /// Mirrors `CKModifySubscriptionsOperation.subscriptionsToSave`.
     pub fn subscriptions_to_save(&self) -> &[CKAnySubscription] {
         &self.subscriptions_to_save
     }
 
+    /// Mirrors `CKModifySubscriptionsOperation.subscriptionIDsToDelete`.
     pub fn subscription_ids_to_delete(&self) -> &[String] {
         &self.subscription_ids_to_delete
     }
 
+    /// Sets the value mirroring `CKModifySubscriptionsOperation.databaseOperation`.
     pub fn with_database_operation(mut self, database_operation: CKDatabaseOperation) -> Self {
         self.database_operation = database_operation;
         self
     }
 
+    /// Executes the corresponding `CloudKit` operation in `CKDatabase`.
     pub fn execute_in(
         &self,
         database: &CKDatabase,
@@ -723,6 +850,7 @@ impl CKModifySubscriptionsOperation {
     }
 }
 
+/// Wraps `CKFetchWebAuthTokenOperation`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CKFetchWebAuthTokenOperation {
     database_operation: CKDatabaseOperation,
@@ -730,6 +858,7 @@ pub struct CKFetchWebAuthTokenOperation {
 }
 
 impl CKFetchWebAuthTokenOperation {
+    /// Creates a wrapper mirroring `CKFetchWebAuthTokenOperation`.
     pub fn new() -> Self {
         Self {
             database_operation: CKDatabaseOperation::default(),
@@ -737,24 +866,29 @@ impl CKFetchWebAuthTokenOperation {
         }
     }
 
+    /// Mirrors `CKFetchWebAuthTokenOperation.databaseOperation`.
     pub const fn database_operation(&self) -> &CKDatabaseOperation {
         &self.database_operation
     }
 
+    /// Mirrors `CKFetchWebAuthTokenOperation.apiToken`.
     pub fn api_token(&self) -> Option<&str> {
         self.api_token.as_deref()
     }
 
+    /// Sets the value mirroring `CKFetchWebAuthTokenOperation.databaseOperation`.
     pub fn with_database_operation(mut self, database_operation: CKDatabaseOperation) -> Self {
         self.database_operation = database_operation;
         self
     }
 
+    /// Sets the value mirroring `CKFetchWebAuthTokenOperation.apiToken`.
     pub fn with_api_token(mut self, api_token: impl Into<String>) -> Self {
         self.api_token = Some(api_token.into());
         self
     }
 
+    /// Executes the corresponding `CloudKit` operation in `CKDatabase`.
     pub fn execute_in(&self, database: &CKDatabase) -> Result<String, CloudKitError> {
         let identifier = optional_cstring_from_str(
             database.container().container_identifier(),
@@ -793,20 +927,29 @@ impl Default for CKFetchWebAuthTokenOperation {
     }
 }
 
+/// Wraps `CKShareParticipantFetchResult`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CKShareParticipantFetchResult {
+    /// Mirrors `CKShareParticipantFetchResult.lookupInfo`.
     pub lookup_info: CKUserIdentityLookupInfo,
+    /// Mirrors `CKShareParticipantFetchResult.participant`.
     pub participant: Option<CKShareParticipant>,
+    /// Mirrors `CKShareParticipantFetchResult.error`.
     pub error: Option<CloudKitError>,
 }
 
+/// Wraps `CKFetchShareParticipantsResult`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CKFetchShareParticipantsResult {
+    /// Mirrors `CKFetchShareParticipantsResult.participants`.
     pub participants: Vec<CKShareParticipant>,
+    /// Mirrors `CKFetchShareParticipantsResult.results`.
     pub results: Vec<CKShareParticipantFetchResult>,
+    /// Mirrors `CKFetchShareParticipantsResult.operationError`.
     pub operation_error: Option<CloudKitError>,
 }
 
+/// Wraps `CKFetchShareParticipantsOperation`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CKFetchShareParticipantsOperation {
     operation: CKOperation,
@@ -814,6 +957,7 @@ pub struct CKFetchShareParticipantsOperation {
 }
 
 impl CKFetchShareParticipantsOperation {
+    /// Creates a wrapper mirroring `CKFetchShareParticipantsOperation`.
     pub fn new() -> Self {
         Self {
             operation: CKOperation::default(),
@@ -821,19 +965,23 @@ impl CKFetchShareParticipantsOperation {
         }
     }
 
+    /// Mirrors `CKFetchShareParticipantsOperation.operation`.
     pub const fn operation(&self) -> &CKOperation {
         &self.operation
     }
 
+    /// Mirrors `CKFetchShareParticipantsOperation.userIDentityLookupInfos`.
     pub fn user_identity_lookup_infos(&self) -> &[CKUserIdentityLookupInfo] {
         &self.user_identity_lookup_infos
     }
 
+    /// Sets the value mirroring `CKFetchShareParticipantsOperation.operation`.
     pub fn with_operation(mut self, operation: CKOperation) -> Self {
         self.operation = operation;
         self
     }
 
+    /// Sets the value mirroring `CKFetchShareParticipantsOperation.userIDentityLookupInfos`.
     pub fn with_user_identity_lookup_infos(
         mut self,
         user_identity_lookup_infos: Vec<CKUserIdentityLookupInfo>,
@@ -842,6 +990,7 @@ impl CKFetchShareParticipantsOperation {
         self
     }
 
+    /// Executes the corresponding `CloudKit` operation in `CKDatabase`.
     pub fn execute_in(
         &self,
         container: &CKContainer,
@@ -879,20 +1028,29 @@ impl Default for CKFetchShareParticipantsOperation {
     }
 }
 
+/// Wraps `CKShareMetadataFetchResult`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CKShareMetadataFetchResult {
+    /// Mirrors `CKShareMetadataFetchResult.shareURL`.
     pub share_url: String,
+    /// Mirrors `CKShareMetadataFetchResult.shareMetadata`.
     pub share_metadata: Option<CKShareMetadata>,
+    /// Mirrors `CKShareMetadataFetchResult.error`.
     pub error: Option<CloudKitError>,
 }
 
+/// Wraps `CKFetchShareMetadataResult`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CKFetchShareMetadataResult {
+    /// Mirrors `CKFetchShareMetadataResult.shareMetadatas`.
     pub share_metadatas: Vec<CKShareMetadata>,
+    /// Mirrors `CKFetchShareMetadataResult.results`.
     pub results: Vec<CKShareMetadataFetchResult>,
+    /// Mirrors `CKFetchShareMetadataResult.operationError`.
     pub operation_error: Option<CloudKitError>,
 }
 
+/// Wraps `CKFetchShareMetadataOperation`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CKFetchShareMetadataOperation {
     operation: CKOperation,
@@ -902,6 +1060,7 @@ pub struct CKFetchShareMetadataOperation {
 }
 
 impl CKFetchShareMetadataOperation {
+    /// Creates a wrapper mirroring `CKFetchShareMetadataOperation`.
     pub fn new() -> Self {
         Self {
             operation: CKOperation::default(),
@@ -911,42 +1070,51 @@ impl CKFetchShareMetadataOperation {
         }
     }
 
+    /// Mirrors `CKFetchShareMetadataOperation.operation`.
     pub const fn operation(&self) -> &CKOperation {
         &self.operation
     }
 
+    /// Mirrors `CKFetchShareMetadataOperation.shareURLs`.
     pub fn share_urls(&self) -> &[String] {
         &self.share_urls
     }
 
+    /// Mirrors `CKFetchShareMetadataOperation.shouldFetchRootRecord`.
     pub const fn should_fetch_root_record(&self) -> bool {
         self.should_fetch_root_record
     }
 
+    /// Mirrors `CKFetchShareMetadataOperation.rootRecordDesiredKeys`.
     pub fn root_record_desired_keys(&self) -> Option<&[String]> {
         self.root_record_desired_keys.as_deref()
     }
 
+    /// Sets the value mirroring `CKFetchShareMetadataOperation.operation`.
     pub fn with_operation(mut self, operation: CKOperation) -> Self {
         self.operation = operation;
         self
     }
 
+    /// Sets the value mirroring `CKFetchShareMetadataOperation.shareURLs`.
     pub fn with_share_urls(mut self, share_urls: Vec<String>) -> Self {
         self.share_urls = share_urls;
         self
     }
 
+    /// Sets the value mirroring `CKFetchShareMetadataOperation.shouldFetchRootRecord`.
     pub fn with_should_fetch_root_record(mut self, should_fetch_root_record: bool) -> Self {
         self.should_fetch_root_record = should_fetch_root_record;
         self
     }
 
+    /// Sets the value mirroring `CKFetchShareMetadataOperation.rootRecordDesiredKeys`.
     pub fn with_root_record_desired_keys(mut self, root_record_desired_keys: Vec<String>) -> Self {
         self.root_record_desired_keys = Some(root_record_desired_keys);
         self
     }
 
+    /// Executes the corresponding `CloudKit` operation in `CKDatabase`.
     pub fn execute_in(
         &self,
         container: &CKContainer,
@@ -1012,20 +1180,29 @@ impl Default for CKFetchShareMetadataOperation {
     }
 }
 
+/// Wraps `CKAcceptShareResult`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CKAcceptShareResult {
+    /// Mirrors `CKAcceptShareResult.shareMetadata`.
     pub share_metadata: CKShareMetadata,
+    /// Mirrors `CKAcceptShareResult.acceptedShare`.
     pub accepted_share: Option<CKShare>,
+    /// Mirrors `CKAcceptShareResult.error`.
     pub error: Option<CloudKitError>,
 }
 
+/// Wraps `CKAcceptSharesResult`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CKAcceptSharesResult {
+    /// Mirrors `CKAcceptSharesResult.acceptedShares`.
     pub accepted_shares: Vec<CKShare>,
+    /// Mirrors `CKAcceptSharesResult.results`.
     pub results: Vec<CKAcceptShareResult>,
+    /// Mirrors `CKAcceptSharesResult.operationError`.
     pub operation_error: Option<CloudKitError>,
 }
 
+/// Wraps `CKAcceptSharesOperation`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CKAcceptSharesOperation {
     operation: CKOperation,
@@ -1033,6 +1210,7 @@ pub struct CKAcceptSharesOperation {
 }
 
 impl CKAcceptSharesOperation {
+    /// Creates a wrapper mirroring `CKAcceptSharesOperation`.
     pub fn new() -> Self {
         Self {
             operation: CKOperation::default(),
@@ -1040,24 +1218,29 @@ impl CKAcceptSharesOperation {
         }
     }
 
+    /// Mirrors `CKAcceptSharesOperation.operation`.
     pub const fn operation(&self) -> &CKOperation {
         &self.operation
     }
 
+    /// Mirrors `CKAcceptSharesOperation.shareMetadatas`.
     pub fn share_metadatas(&self) -> &[CKShareMetadata] {
         &self.share_metadatas
     }
 
+    /// Sets the value mirroring `CKAcceptSharesOperation.operation`.
     pub fn with_operation(mut self, operation: CKOperation) -> Self {
         self.operation = operation;
         self
     }
 
+    /// Sets the value mirroring `CKAcceptSharesOperation.shareMetadatas`.
     pub fn with_share_metadatas(mut self, share_metadatas: Vec<CKShareMetadata>) -> Self {
         self.share_metadatas = share_metadatas;
         self
     }
 
+    /// Executes the corresponding `CloudKit` operation in `CKDatabase`.
     pub fn execute_in(
         &self,
         container: &CKContainer,
@@ -1112,18 +1295,25 @@ impl Default for CKAcceptSharesOperation {
     }
 }
 
+/// Wraps `CKShareAccessRequestResult`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CKShareAccessRequestResult {
+    /// Mirrors `CKShareAccessRequestResult.shareURL`.
     pub share_url: String,
+    /// Mirrors `CKShareAccessRequestResult.error`.
     pub error: Option<CloudKitError>,
 }
 
+/// Wraps `CKShareRequestAccessResult`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CKShareRequestAccessResult {
+    /// Mirrors `CKShareRequestAccessResult.results`.
     pub results: Vec<CKShareAccessRequestResult>,
+    /// Mirrors `CKShareRequestAccessResult.operationError`.
     pub operation_error: Option<CloudKitError>,
 }
 
+/// Wraps `CKShareRequestAccessOperation`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CKShareRequestAccessOperation {
     operation: CKOperation,
@@ -1131,6 +1321,7 @@ pub struct CKShareRequestAccessOperation {
 }
 
 impl CKShareRequestAccessOperation {
+    /// Creates a wrapper mirroring `CKShareRequestAccessOperation`.
     pub fn new() -> Self {
         Self {
             operation: CKOperation::default(),
@@ -1138,24 +1329,29 @@ impl CKShareRequestAccessOperation {
         }
     }
 
+    /// Mirrors `CKShareRequestAccessOperation.operation`.
     pub const fn operation(&self) -> &CKOperation {
         &self.operation
     }
 
+    /// Mirrors `CKShareRequestAccessOperation.shareURLs`.
     pub fn share_urls(&self) -> &[String] {
         &self.share_urls
     }
 
+    /// Sets the value mirroring `CKShareRequestAccessOperation.operation`.
     pub fn with_operation(mut self, operation: CKOperation) -> Self {
         self.operation = operation;
         self
     }
 
+    /// Sets the value mirroring `CKShareRequestAccessOperation.shareURLs`.
     pub fn with_share_urls(mut self, share_urls: Vec<String>) -> Self {
         self.share_urls = share_urls;
         self
     }
 
+    /// Executes the corresponding `CloudKit` operation in `CKDatabase`.
     pub fn execute_in(
         &self,
         container: &CKContainer,

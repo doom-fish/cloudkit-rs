@@ -1,11 +1,15 @@
 use crate::private::CKReferencePayload;
 use crate::record::CKRecordID;
 
+/// Mirrors `CKReferenceAction`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum CKReferenceAction {
+    /// Mirrors `CKReferenceAction.none`.
     None,
+    /// Mirrors `CKReferenceAction.deleteSelf`.
     DeleteSelf,
+    /// Mirrors `CKReferenceAction.unknown`.
     Unknown(u64),
 }
 
@@ -27,6 +31,7 @@ impl CKReferenceAction {
     }
 }
 
+/// Wraps `CKReference`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CKReference {
     record_id: CKRecordID,
@@ -34,22 +39,27 @@ pub struct CKReference {
 }
 
 impl CKReference {
+    /// Creates a wrapper mirroring `CKReference`.
     pub fn new(record_id: CKRecordID, action: CKReferenceAction) -> Self {
         Self { record_id, action }
     }
 
+    /// Mirrors `CKReference.recordID`.
     pub fn record_id(&self) -> &CKRecordID {
         &self.record_id
     }
 
+    /// Mirrors `CKReference.action`.
     pub const fn action(&self) -> CKReferenceAction {
         self.action
     }
 
+    /// Mirrors `CKReference.parent`.
     pub fn parent(record_id: CKRecordID) -> Self {
         Self::new(record_id, CKReferenceAction::None)
     }
 
+    /// Mirrors `CKReference.deleteSelf`.
     pub fn delete_self(record_id: CKRecordID) -> Self {
         Self::new(record_id, CKReferenceAction::DeleteSelf)
     }

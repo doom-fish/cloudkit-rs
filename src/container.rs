@@ -13,14 +13,21 @@ use crate::share::CKShareParticipant;
 use crate::user_identity::{CKUserIdentity, CKUserIdentityLookupInfo};
 use doom_fish_utils::panic_safe::catch_user_panic;
 
+/// Mirrors the values returned by `CKContainer.accountStatus`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum AccountStatus {
+    /// Mirrors `CKContainer.accountStatus.couldNotDetermine`.
     CouldNotDetermine,
+    /// Mirrors `CKContainer.accountStatus.available`.
     Available,
+    /// Mirrors `CKContainer.accountStatus.restricted`.
     Restricted,
+    /// Mirrors `CKContainer.accountStatus.noAccount`.
     NoAccount,
+    /// Mirrors `CKContainer.accountStatus.temporarilyUnavailable`.
     TemporarilyUnavailable,
+    /// Mirrors `CKContainer.accountStatus.unknown`.
     Unknown(i32),
 }
 
@@ -51,13 +58,19 @@ impl core::fmt::Display for AccountStatus {
     }
 }
 
+/// Mirrors `CKContainer.applicationPermissionStatus`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum CKApplicationPermissionStatus {
+    /// Mirrors `CKContainer.applicationPermissionStatus.initialState`.
     InitialState,
+    /// Mirrors `CKContainer.applicationPermissionStatus.couldNotComplete`.
     CouldNotComplete,
+    /// Mirrors `CKContainer.applicationPermissionStatus.denied`.
     Denied,
+    /// Mirrors `CKContainer.applicationPermissionStatus.granted`.
     Granted,
+    /// Mirrors `CKContainer.applicationPermissionStatus.unknown`.
     Unknown(i32),
 }
 
@@ -87,16 +100,20 @@ impl core::fmt::Display for CKApplicationPermissionStatus {
     }
 }
 
+/// Wraps `CKApplicationPermissions`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct CKApplicationPermissions(u64);
 
 impl CKApplicationPermissions {
+    /// Mirrors the `userDiscoverability` option on `CKApplicationPermissions`.
     pub const USER_DISCOVERABILITY: Self = Self(1 << 0);
 
+    /// Mirrors `CKApplicationPermissions.rawValue`.
     pub const fn bits(self) -> u64 {
         self.0
     }
 
+    /// Mirrors `CKApplicationPermissions.contains(_:)`.
     pub const fn contains(self, other: Self) -> bool {
         (self.0 & other.0) == other.0
     }
@@ -116,6 +133,7 @@ impl core::ops::BitOrAssign for CKApplicationPermissions {
     }
 }
 
+/// Wraps `CKContainer`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CKContainer {
     identifier: Option<String>,
@@ -128,40 +146,49 @@ impl Default for CKContainer {
 }
 
 impl CKContainer {
+    /// Creates a wrapper mirroring `CKContainer`.
     pub fn new() -> Self {
         Self { identifier: None }
     }
 
+    /// Returns the default wrapper mirroring `CKContainer`.
     pub fn default() -> Self {
         Self::new()
     }
 
+    /// Mirrors `CKContainer.container`.
     pub fn container(identifier: impl Into<String>) -> Self {
         Self {
             identifier: Some(identifier.into()),
         }
     }
 
+    /// Mirrors `CKContainer.containerIdentifier`.
     pub fn container_identifier(&self) -> Option<&str> {
         self.identifier.as_deref()
     }
 
+    /// Mirrors `CKContainer.privateCloudDatabase`.
     pub fn private_cloud_database(&self) -> CKDatabase {
         CKDatabase::new(self.clone(), CKDatabaseScope::Private)
     }
 
+    /// Mirrors `CKContainer.publicCloudDatabase`.
     pub fn public_cloud_database(&self) -> CKDatabase {
         CKDatabase::new(self.clone(), CKDatabaseScope::Public)
     }
 
+    /// Mirrors `CKContainer.sharedCloudDatabase`.
     pub fn shared_cloud_database(&self) -> CKDatabase {
         CKDatabase::new(self.clone(), CKDatabaseScope::Shared)
     }
 
+    /// Mirrors `CKContainer.databaseWithScope`.
     pub fn database_with_scope(&self, scope: CKDatabaseScope) -> CKDatabase {
         CKDatabase::new(self.clone(), scope)
     }
 
+    /// Mirrors `CKContainer.accountStatus`.
     pub fn account_status(&self) -> Result<AccountStatus, CloudKitError> {
         let identifier =
             optional_cstring_from_str(self.identifier.as_deref(), "container identifier")?;
@@ -182,6 +209,7 @@ impl CKContainer {
         Ok(AccountStatus::from_raw(out_status))
     }
 
+    /// Wraps `CKContainer.accountStatus(_:completionHandler:)`.
     pub fn account_status_with_completion_handler<F>(
         &self,
         callback: F,
@@ -202,6 +230,7 @@ impl CKContainer {
         Ok(())
     }
 
+    /// Mirrors `CKContainer.fetchUserRecordID`.
     pub fn fetch_user_record_id(&self) -> Result<CKRecordID, CloudKitError> {
         let identifier =
             optional_cstring_from_str(self.identifier.as_deref(), "container identifier")?;
@@ -226,6 +255,7 @@ impl CKContainer {
         Ok(CKRecordID::from_payload(record_id))
     }
 
+    /// Wraps `CKContainer.fetchUserRecordID(_:completionHandler:)`.
     pub fn fetch_user_record_id_with_completion_handler<F>(
         &self,
         callback: F,
@@ -246,6 +276,7 @@ impl CKContainer {
         Ok(())
     }
 
+    /// Mirrors `CKContainer.discoverUserIDentity`.
     pub fn discover_user_identity(
         &self,
         lookup_info: &CKUserIdentityLookupInfo,
@@ -275,6 +306,7 @@ impl CKContainer {
         Ok(CKUserIdentity::from_payload(payload))
     }
 
+    /// Mirrors `CKContainer.discoverUserIDentityWithEmailAddress`.
     pub fn discover_user_identity_with_email_address(
         &self,
         email_address: impl Into<String>,
@@ -282,6 +314,7 @@ impl CKContainer {
         self.discover_user_identity(&CKUserIdentityLookupInfo::with_email_address(email_address))
     }
 
+    /// Mirrors `CKContainer.discoverUserIDentityWithPhoneNumber`.
     pub fn discover_user_identity_with_phone_number(
         &self,
         phone_number: impl Into<String>,
@@ -289,6 +322,7 @@ impl CKContainer {
         self.discover_user_identity(&CKUserIdentityLookupInfo::with_phone_number(phone_number))
     }
 
+    /// Mirrors `CKContainer.discoverUserIDentityWithUserRecordID`.
     pub fn discover_user_identity_with_user_record_id(
         &self,
         user_record_id: CKRecordID,
@@ -298,6 +332,7 @@ impl CKContainer {
         ))
     }
 
+    /// Mirrors `CKContainer.fetchShareParticipant`.
     pub fn fetch_share_participant(
         &self,
         lookup_info: &CKUserIdentityLookupInfo,
@@ -330,6 +365,7 @@ impl CKContainer {
         Ok(CKShareParticipant::from_payload(payload))
     }
 
+    /// Mirrors `CKContainer.fetchShareParticipantWithEmailAddress`.
     pub fn fetch_share_participant_with_email_address(
         &self,
         email_address: impl Into<String>,
@@ -337,6 +373,7 @@ impl CKContainer {
         self.fetch_share_participant(&CKUserIdentityLookupInfo::with_email_address(email_address))
     }
 
+    /// Mirrors `CKContainer.fetchShareParticipantWithPhoneNumber`.
     pub fn fetch_share_participant_with_phone_number(
         &self,
         phone_number: impl Into<String>,
@@ -344,6 +381,7 @@ impl CKContainer {
         self.fetch_share_participant(&CKUserIdentityLookupInfo::with_phone_number(phone_number))
     }
 
+    /// Mirrors `CKContainer.fetchShareParticipantWithUserRecordID`.
     pub fn fetch_share_participant_with_user_record_id(
         &self,
         user_record_id: CKRecordID,

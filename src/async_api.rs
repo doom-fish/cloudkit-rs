@@ -424,6 +424,7 @@ impl core::fmt::Debug for FetchAllRecordZonesFuture {
 }
 
 impl CKContainer {
+    /// Wraps the async form of `CKContainer.accountStatus`.
     pub fn account_status_async(&self) -> AccountStatusFuture {
         let identifier =
             match optional_cstring_from_str(self.container_identifier(), "container identifier") {
@@ -446,6 +447,7 @@ impl CKContainer {
         AccountStatusFuture { inner: future }
     }
 
+    /// Wraps the async form of `CKContainer.fetchUserRecordID`.
     pub fn fetch_user_record_id_async(&self) -> FetchUserRecordIdFuture {
         let identifier =
             match optional_cstring_from_str(self.container_identifier(), "container identifier") {
@@ -468,6 +470,7 @@ impl CKContainer {
         FetchUserRecordIdFuture { inner: future }
     }
 
+    /// Wraps the async form of `CKContainer.requestApplicationPermission(_:)`.
     pub fn request_application_permission_async(
         &self,
         permission: CKApplicationPermissions,
@@ -502,6 +505,7 @@ impl CKContainer {
         RequestApplicationPermissionFuture { inner: future }
     }
 
+    /// Wraps the async form of `CKContainer.discoverUserIdentity(with:)`.
     pub fn discover_user_identity_async(
         &self,
         lookup_info: &CKUserIdentityLookupInfo,
@@ -537,6 +541,7 @@ impl CKContainer {
         DiscoverUserIdentityFuture { inner: future }
     }
 
+    /// Wraps the email-address form of `CKContainer.discoverUserIdentity(with:)`.
     pub fn discover_user_identity_with_email_address_async(
         &self,
         email_address: impl Into<String>,
@@ -546,6 +551,7 @@ impl CKContainer {
         ))
     }
 
+    /// Wraps the phone-number form of `CKContainer.discoverUserIdentity(with:)`.
     pub fn discover_user_identity_with_phone_number_async(
         &self,
         phone_number: impl Into<String>,
@@ -555,6 +561,7 @@ impl CKContainer {
         ))
     }
 
+    /// Wraps the user-record-ID form of `CKContainer.discoverUserIdentity(with:)`.
     pub fn discover_user_identity_with_user_record_id_async(
         &self,
         user_record_id: CKRecordID,
@@ -566,6 +573,7 @@ impl CKContainer {
 }
 
 impl CKDatabase {
+    /// Wraps the async form of `CKDatabase.performQuery(_:inZoneWith:)`.
     pub fn perform_query_async(
         &self,
         query: &CKQuery,
@@ -618,6 +626,7 @@ impl CKDatabase {
         PerformQueryFuture { inner: future }
     }
 
+    /// Wraps the async form of `CKDatabase.fetchRecord(withID:)`.
     pub fn fetch_record_async(&self, record_id: &CKRecordID) -> FetchRecordFuture {
         let identifier = match optional_cstring_from_str(
             self.container().container_identifier(),
@@ -652,6 +661,7 @@ impl CKDatabase {
         FetchRecordFuture { inner: future }
     }
 
+    /// Wraps the async form of `CKDatabase.deleteRecord(withID:)`.
     pub fn delete_record_async(&self, record_id: &CKRecordID) -> DeleteRecordFuture {
         let identifier = match optional_cstring_from_str(
             self.container().container_identifier(),
@@ -686,6 +696,7 @@ impl CKDatabase {
         DeleteRecordFuture { inner: future }
     }
 
+    /// Wraps the async form of `CKDatabase.records(matching:inZoneWith:)`.
     pub fn fetch_query_results_async(
         &self,
         query: &CKQuery,
@@ -762,6 +773,7 @@ impl CKDatabase {
         FetchQueryResultsFuture { inner: future }
     }
 
+    /// Wraps the async form of `CKDatabase.allRecordZones()`.
     pub fn fetch_all_record_zones_async(&self) -> FetchAllRecordZonesFuture {
         let identifier = match optional_cstring_from_str(
             self.container().container_identifier(),
@@ -789,6 +801,7 @@ impl CKDatabase {
 }
 
 impl CKModifyRecordsOperation {
+    /// Executes `CKModifyRecordsOperation` asynchronously in the given `CKDatabase`.
     pub fn execute_in_async(&self, database: &CKDatabase) -> ModifyRecordsFuture {
         let identifier = match optional_cstring_from_str(
             database.container().container_identifier(),
@@ -839,6 +852,7 @@ impl CKModifyRecordsOperation {
 }
 
 impl CKFetchDatabaseChangesOperation {
+    /// Executes `CKFetchDatabaseChangesOperation` asynchronously in the given `CKDatabase`.
     pub fn execute_in_async(&self, database: &CKDatabase) -> FetchDatabaseChangesFuture {
         let identifier = match optional_cstring_from_str(
             database.container().container_identifier(),

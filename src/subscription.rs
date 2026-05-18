@@ -4,12 +4,17 @@ use crate::notification_info::CKNotificationInfo;
 use crate::private::{CKNotificationInfoPayload, CKSubscriptionPayload, CKSubscriptionPayloadKind};
 use crate::record::CKRecordZoneID;
 
+/// Mirrors `CKSubscriptionType`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum CKSubscriptionType {
+    /// Mirrors `CKSubscriptionType.query`.
     Query,
+    /// Mirrors `CKSubscriptionType.recordZone`.
     RecordZone,
+    /// Mirrors `CKSubscriptionType.database`.
     Database,
+    /// Mirrors `CKSubscriptionType.unknown`.
     Unknown(i32),
 }
 
@@ -24,15 +29,21 @@ impl CKSubscriptionType {
     }
 }
 
+/// Wraps `CKQuerySubscription.Options`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct QuerySubscriptionOptions(u64);
 
 impl QuerySubscriptionOptions {
+    /// Mirrors the `firesOnRecordCreation` option on `CKQuerySubscription.Options`.
     pub const FIRES_ON_RECORD_CREATION: Self = Self(1 << 0);
+    /// Mirrors the `firesOnRecordUpdate` option on `CKQuerySubscription.Options`.
     pub const FIRES_ON_RECORD_UPDATE: Self = Self(1 << 1);
+    /// Mirrors the `firesOnRecordDeletion` option on `CKQuerySubscription.Options`.
     pub const FIRES_ON_RECORD_DELETION: Self = Self(1 << 2);
+    /// Mirrors the `firesOnce` option on `CKQuerySubscription.Options`.
     pub const FIRES_ONCE: Self = Self(1 << 3);
 
+    /// Mirrors `CKQuerySubscription.Options.rawValue`.
     pub const fn bits(self) -> u64 {
         self.0
     }
@@ -52,6 +63,7 @@ impl BitOrAssign for QuerySubscriptionOptions {
     }
 }
 
+/// Wraps `CKSubscription`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CKSubscription {
     subscription_id: String,
@@ -60,6 +72,7 @@ pub struct CKSubscription {
 }
 
 impl CKSubscription {
+    /// Creates a wrapper mirroring `CKSubscription`.
     pub fn new(subscription_id: impl Into<String>, subscription_type: CKSubscriptionType) -> Self {
         Self {
             subscription_id: subscription_id.into(),
@@ -68,24 +81,29 @@ impl CKSubscription {
         }
     }
 
+    /// Mirrors `CKSubscription.subscriptionID`.
     pub fn subscription_id(&self) -> &str {
         &self.subscription_id
     }
 
+    /// Mirrors `CKSubscription.subscriptionType`.
     pub const fn subscription_type(&self) -> CKSubscriptionType {
         self.subscription_type
     }
 
+    /// Mirrors `CKSubscription.notificationInfo`.
     pub fn notification_info(&self) -> &CKNotificationInfo {
         &self.notification_info
     }
 
+    /// Sets the value mirroring `CKSubscription.notificationInfo`.
     pub fn with_notification_info(mut self, notification_info: CKNotificationInfo) -> Self {
         self.notification_info = notification_info;
         self
     }
 }
 
+/// Wraps `CKQuerySubscription`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CKQuerySubscription {
     base: CKSubscription,
@@ -96,6 +114,7 @@ pub struct CKQuerySubscription {
 }
 
 impl CKQuerySubscription {
+    /// Creates a wrapper mirroring `CKQuerySubscription`.
     pub fn new(
         record_type: impl Into<String>,
         predicate_format: impl Into<String>,
@@ -111,31 +130,38 @@ impl CKQuerySubscription {
         }
     }
 
+    /// Mirrors `CKQuerySubscription.base`.
     pub const fn base(&self) -> &CKSubscription {
         &self.base
     }
 
+    /// Mirrors `CKQuerySubscription.recordType`.
     pub fn record_type(&self) -> &str {
         &self.record_type
     }
 
+    /// Mirrors `CKQuerySubscription.predicateFormat`.
     pub fn predicate_format(&self) -> &str {
         &self.predicate_format
     }
 
+    /// Mirrors `CKQuerySubscription.zoneID`.
     pub const fn zone_id(&self) -> Option<&CKRecordZoneID> {
         self.zone_id.as_ref()
     }
 
+    /// Mirrors `CKQuerySubscription.options`.
     pub const fn options(&self) -> QuerySubscriptionOptions {
         self.options
     }
 
+    /// Sets the value mirroring `CKQuerySubscription.zoneID`.
     pub fn with_zone_id(mut self, zone_id: CKRecordZoneID) -> Self {
         self.zone_id = Some(zone_id);
         self
     }
 
+    /// Sets the value mirroring `CKQuerySubscription.notificationInfo`.
     pub fn with_notification_info(mut self, notification_info: CKNotificationInfo) -> Self {
         self.base = self.base.clone().with_notification_info(notification_info);
         self
@@ -174,6 +200,7 @@ impl CKQuerySubscription {
     }
 }
 
+/// Wraps `CKRecordZoneSubscription`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CKRecordZoneSubscription {
     base: CKSubscription,
@@ -182,6 +209,7 @@ pub struct CKRecordZoneSubscription {
 }
 
 impl CKRecordZoneSubscription {
+    /// Creates a wrapper mirroring `CKRecordZoneSubscription`.
     pub fn new(zone_id: CKRecordZoneID, subscription_id: impl Into<String>) -> Self {
         Self {
             base: CKSubscription::new(subscription_id, CKSubscriptionType::RecordZone),
@@ -190,23 +218,28 @@ impl CKRecordZoneSubscription {
         }
     }
 
+    /// Mirrors `CKRecordZoneSubscription.base`.
     pub const fn base(&self) -> &CKSubscription {
         &self.base
     }
 
+    /// Mirrors `CKRecordZoneSubscription.zoneID`.
     pub const fn zone_id(&self) -> &CKRecordZoneID {
         &self.zone_id
     }
 
+    /// Mirrors `CKRecordZoneSubscription.recordType`.
     pub fn record_type(&self) -> Option<&str> {
         self.record_type.as_deref()
     }
 
+    /// Sets the value mirroring `CKRecordZoneSubscription.recordType`.
     pub fn with_record_type(mut self, record_type: impl Into<String>) -> Self {
         self.record_type = Some(record_type.into());
         self
     }
 
+    /// Sets the value mirroring `CKRecordZoneSubscription.notificationInfo`.
     pub fn with_notification_info(mut self, notification_info: CKNotificationInfo) -> Self {
         self.base = self.base.clone().with_notification_info(notification_info);
         self
@@ -241,6 +274,7 @@ impl CKRecordZoneSubscription {
     }
 }
 
+/// Wraps `CKDatabaseSubscription`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CKDatabaseSubscription {
     base: CKSubscription,
@@ -248,6 +282,7 @@ pub struct CKDatabaseSubscription {
 }
 
 impl CKDatabaseSubscription {
+    /// Creates a wrapper mirroring `CKDatabaseSubscription`.
     pub fn new(subscription_id: impl Into<String>) -> Self {
         Self {
             base: CKSubscription::new(subscription_id, CKSubscriptionType::Database),
@@ -255,19 +290,23 @@ impl CKDatabaseSubscription {
         }
     }
 
+    /// Mirrors `CKDatabaseSubscription.base`.
     pub const fn base(&self) -> &CKSubscription {
         &self.base
     }
 
+    /// Mirrors `CKDatabaseSubscription.recordType`.
     pub fn record_type(&self) -> Option<&str> {
         self.record_type.as_deref()
     }
 
+    /// Sets the value mirroring `CKDatabaseSubscription.recordType`.
     pub fn with_record_type(mut self, record_type: impl Into<String>) -> Self {
         self.record_type = Some(record_type.into());
         self
     }
 
+    /// Sets the value mirroring `CKDatabaseSubscription.notificationInfo`.
     pub fn with_notification_info(mut self, notification_info: CKNotificationInfo) -> Self {
         self.base = self.base.clone().with_notification_info(notification_info);
         self
@@ -297,15 +336,20 @@ impl CKDatabaseSubscription {
     }
 }
 
+/// Mirrors `CKAnySubscription`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum CKAnySubscription {
+    /// Mirrors `CKAnySubscription.query`.
     Query(CKQuerySubscription),
+    /// Mirrors `CKAnySubscription.recordZone`.
     RecordZone(CKRecordZoneSubscription),
+    /// Mirrors `CKAnySubscription.database`.
     Database(CKDatabaseSubscription),
 }
 
 impl CKAnySubscription {
+    /// Mirrors `CKAnySubscription.subscriptionID`.
     pub fn subscription_id(&self) -> &str {
         match self {
             Self::Query(subscription) => subscription.base().subscription_id(),
@@ -314,6 +358,7 @@ impl CKAnySubscription {
         }
     }
 
+    /// Mirrors `CKAnySubscription.notificationInfo`.
     pub fn notification_info(&self) -> &CKNotificationInfo {
         match self {
             Self::Query(subscription) => subscription.base().notification_info(),
@@ -322,6 +367,7 @@ impl CKAnySubscription {
         }
     }
 
+    /// Mirrors `CKAnySubscription.subscriptionType`.
     pub const fn subscription_type(&self) -> CKSubscriptionType {
         match self {
             Self::Query(subscription) => subscription.base().subscription_type(),

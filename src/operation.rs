@@ -19,50 +19,77 @@ use crate::query::CKQuery;
 use crate::record::{CKRecord, CKRecordID, CKRecordZoneID};
 use crate::server_change_token::CKServerChangeToken;
 
+/// Mirrors `CKRecordSavePolicy`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CKRecordSavePolicy {
+    /// Mirrors `CKRecordSavePolicy.ifServerRecordUnchanged`.
     IfServerRecordUnchanged = 0,
+    /// Mirrors `CKRecordSavePolicy.changedKeys`.
     ChangedKeys = 1,
+    /// Mirrors `CKRecordSavePolicy.allKeys`.
     AllKeys = 2,
 }
 
+/// Wraps `CKRecordSaveResult`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CKRecordSaveResult {
+    /// Mirrors `CKRecordSaveResult.recordID`.
     pub record_id: CKRecordID,
+    /// Mirrors `CKRecordSaveResult.record`.
     pub record: Option<CKRecord>,
+    /// Mirrors `CKRecordSaveResult.error`.
     pub error: Option<crate::error::CloudKitError>,
 }
 
+/// Wraps `CKRecordDeleteResult`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CKRecordDeleteResult {
+    /// Mirrors `CKRecordDeleteResult.recordID`.
     pub record_id: CKRecordID,
+    /// Mirrors `CKRecordDeleteResult.error`.
     pub error: Option<crate::error::CloudKitError>,
 }
 
+/// Wraps `ModifyRecordsResult`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ModifyRecordsResult {
+    /// Mirrors `ModifyRecordsResult.savedRecords`.
     pub saved_records: Vec<CKRecord>,
+    /// Mirrors `ModifyRecordsResult.deletedRecordIDs`.
     pub deleted_record_ids: Vec<CKRecordID>,
+    /// Mirrors `ModifyRecordsResult.saveResults`.
     pub save_results: Vec<CKRecordSaveResult>,
+    /// Mirrors `ModifyRecordsResult.deleteResults`.
     pub delete_results: Vec<CKRecordDeleteResult>,
+    /// Mirrors `ModifyRecordsResult.operationError`.
     pub operation_error: Option<crate::error::CloudKitError>,
 }
 
+/// Wraps a match result reported by `CKQueryOperation`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct QueryMatchResult {
+    /// Mirrors `CKQueryOperation.recordID`.
     pub record_id: CKRecordID,
+    /// Mirrors `CKQueryOperation.record`.
     pub record: Option<CKRecord>,
+    /// Mirrors `CKQueryOperation.error`.
     pub error: Option<crate::error::CloudKitError>,
 }
 
+/// Wraps `QueryOperationResult`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct QueryOperationResult {
+    /// Mirrors `QueryOperationResult.records`.
     pub records: Vec<CKRecord>,
+    /// Mirrors `QueryOperationResult.matches`.
     pub matches: Vec<QueryMatchResult>,
+    /// Mirrors `QueryOperationResult.cursorReturned`.
     pub cursor_returned: bool,
+    /// Mirrors `QueryOperationResult.operationError`.
     pub operation_error: Option<crate::error::CloudKitError>,
 }
 
+/// Wraps `CKModifyRecordsOperation`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CKModifyRecordsOperation {
     records_to_save: Vec<CKRecord>,
@@ -72,6 +99,7 @@ pub struct CKModifyRecordsOperation {
 }
 
 impl CKModifyRecordsOperation {
+    /// Creates a wrapper mirroring `CKModifyRecordsOperation`.
     pub fn new(records_to_save: Vec<CKRecord>, record_ids_to_delete: Vec<CKRecordID>) -> Self {
         Self {
             records_to_save,
@@ -81,32 +109,39 @@ impl CKModifyRecordsOperation {
         }
     }
 
+    /// Mirrors `CKModifyRecordsOperation.recordsToSave`.
     pub fn records_to_save(&self) -> &[CKRecord] {
         &self.records_to_save
     }
 
+    /// Mirrors `CKModifyRecordsOperation.recordIDsToDelete`.
     pub fn record_ids_to_delete(&self) -> &[CKRecordID] {
         &self.record_ids_to_delete
     }
 
+    /// Mirrors `CKModifyRecordsOperation.savePolicy`.
     pub const fn save_policy(&self) -> CKRecordSavePolicy {
         self.save_policy
     }
 
+    /// Mirrors `CKModifyRecordsOperation.atomic`.
     pub const fn atomic(&self) -> bool {
         self.atomic
     }
 
+    /// Sets the value mirroring `CKModifyRecordsOperation.savePolicy`.
     pub fn with_save_policy(mut self, save_policy: CKRecordSavePolicy) -> Self {
         self.save_policy = save_policy;
         self
     }
 
+    /// Sets the value mirroring `CKModifyRecordsOperation.atomic`.
     pub fn with_atomic(mut self, atomic: bool) -> Self {
         self.atomic = atomic;
         self
     }
 
+    /// Executes the corresponding `CloudKit` operation in `CKDatabase`.
     pub fn execute_in(&self, database: &CKDatabase) -> Result<ModifyRecordsResult, CloudKitError> {
         let identifier = optional_cstring_from_str(
             database.container().container_identifier(),
@@ -182,6 +217,7 @@ impl CKModifyRecordsOperation {
     }
 }
 
+/// Wraps `CKQueryOperation`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CKQueryOperation {
     query: CKQuery,
@@ -191,6 +227,7 @@ pub struct CKQueryOperation {
 }
 
 impl CKQueryOperation {
+    /// Creates a wrapper mirroring `CKQueryOperation`.
     pub fn new(query: CKQuery) -> Self {
         Self {
             query,
@@ -200,37 +237,45 @@ impl CKQueryOperation {
         }
     }
 
+    /// Mirrors `CKQueryOperation.query`.
     pub fn query(&self) -> &CKQuery {
         &self.query
     }
 
+    /// Mirrors `CKQueryOperation.zoneID`.
     pub const fn zone_id(&self) -> Option<&CKRecordZoneID> {
         self.zone_id.as_ref()
     }
 
+    /// Mirrors `CKQueryOperation.desiredKeys`.
     pub fn desired_keys(&self) -> Option<&[String]> {
         self.desired_keys.as_deref()
     }
 
+    /// Mirrors `CKQueryOperation.resultsLimit`.
     pub const fn results_limit(&self) -> Option<usize> {
         self.results_limit
     }
 
+    /// Sets the value mirroring `CKQueryOperation.zoneID`.
     pub fn with_zone_id(mut self, zone_id: CKRecordZoneID) -> Self {
         self.zone_id = Some(zone_id);
         self
     }
 
+    /// Sets the value mirroring `CKQueryOperation.desiredKeys`.
     pub fn with_desired_keys(mut self, desired_keys: Vec<String>) -> Self {
         self.desired_keys = Some(desired_keys);
         self
     }
 
+    /// Sets the value mirroring `CKQueryOperation.resultsLimit`.
     pub fn with_results_limit(mut self, results_limit: usize) -> Self {
         self.results_limit = Some(results_limit);
         self
     }
 
+    /// Executes the corresponding `CloudKit` operation in `CKDatabase`.
     pub fn execute_in(&self, database: &CKDatabase) -> Result<QueryOperationResult, CloudKitError> {
         let identifier = optional_cstring_from_str(
             database.container().container_identifier(),
@@ -286,6 +331,7 @@ impl CKQueryOperation {
     }
 }
 
+/// Wraps `CKFetchRecordsOperation`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CKFetchRecordsOperation {
     record_ids: Vec<CKRecordID>,
@@ -293,6 +339,7 @@ pub struct CKFetchRecordsOperation {
 }
 
 impl CKFetchRecordsOperation {
+    /// Creates a wrapper mirroring `CKFetchRecordsOperation`.
     pub fn new(record_ids: Vec<CKRecordID>) -> Self {
         Self {
             record_ids,
@@ -300,19 +347,23 @@ impl CKFetchRecordsOperation {
         }
     }
 
+    /// Mirrors `CKFetchRecordsOperation.recordIDs`.
     pub fn record_ids(&self) -> &[CKRecordID] {
         &self.record_ids
     }
 
+    /// Mirrors `CKFetchRecordsOperation.desiredKeys`.
     pub fn desired_keys(&self) -> Option<&[String]> {
         self.desired_keys.as_deref()
     }
 
+    /// Sets the value mirroring `CKFetchRecordsOperation.desiredKeys`.
     pub fn with_desired_keys(mut self, desired_keys: Vec<String>) -> Self {
         self.desired_keys = Some(desired_keys);
         self
     }
 
+    /// Executes the corresponding `CloudKit` operation in `CKDatabase`.
     pub fn execute_in(&self, database: &CKDatabase) -> Result<CKFetchRecordsResult, CloudKitError> {
         let identifier = optional_cstring_from_str(
             database.container().container_identifier(),
@@ -359,6 +410,7 @@ impl CKFetchRecordsOperation {
     }
 }
 
+/// Wraps `CKFetchDatabaseChangesOperation`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CKFetchDatabaseChangesOperation {
     previous_server_change_token: Option<CKServerChangeToken>,
@@ -367,6 +419,7 @@ pub struct CKFetchDatabaseChangesOperation {
 }
 
 impl CKFetchDatabaseChangesOperation {
+    /// Creates a wrapper mirroring `CKFetchDatabaseChangesOperation`.
     pub fn new() -> Self {
         Self {
             previous_server_change_token: None,
@@ -375,33 +428,40 @@ impl CKFetchDatabaseChangesOperation {
         }
     }
 
+    /// Mirrors `CKFetchDatabaseChangesOperation.previousServerChangeToken`.
     pub const fn previous_server_change_token(&self) -> Option<&CKServerChangeToken> {
         self.previous_server_change_token.as_ref()
     }
 
+    /// Mirrors `CKFetchDatabaseChangesOperation.resultsLimit`.
     pub const fn results_limit(&self) -> Option<usize> {
         self.results_limit
     }
 
+    /// Mirrors `CKFetchDatabaseChangesOperation.fetchAllChanges`.
     pub const fn fetch_all_changes(&self) -> bool {
         self.fetch_all_changes
     }
 
+    /// Sets the value mirroring `CKFetchDatabaseChangesOperation.previousServerChangeToken`.
     pub fn with_previous_server_change_token(mut self, token: CKServerChangeToken) -> Self {
         self.previous_server_change_token = Some(token);
         self
     }
 
+    /// Sets the value mirroring `CKFetchDatabaseChangesOperation.resultsLimit`.
     pub fn with_results_limit(mut self, results_limit: usize) -> Self {
         self.results_limit = Some(results_limit);
         self
     }
 
+    /// Sets the value mirroring `CKFetchDatabaseChangesOperation.fetchAllChanges`.
     pub fn with_fetch_all_changes(mut self, fetch_all_changes: bool) -> Self {
         self.fetch_all_changes = fetch_all_changes;
         self
     }
 
+    /// Executes the corresponding `CloudKit` operation in `CKDatabase`.
     pub fn execute_in(
         &self,
         database: &CKDatabase,
@@ -452,6 +512,7 @@ impl Default for CKFetchDatabaseChangesOperation {
     }
 }
 
+/// Wraps `CKFetchRecordZoneChangesConfiguration`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CKFetchRecordZoneChangesConfiguration {
     previous_server_change_token: Option<CKServerChangeToken>,
@@ -460,6 +521,7 @@ pub struct CKFetchRecordZoneChangesConfiguration {
 }
 
 impl CKFetchRecordZoneChangesConfiguration {
+    /// Creates a wrapper mirroring `CKFetchRecordZoneChangesConfiguration`.
     pub fn new() -> Self {
         Self {
             previous_server_change_token: None,
@@ -468,28 +530,34 @@ impl CKFetchRecordZoneChangesConfiguration {
         }
     }
 
+    /// Mirrors `CKFetchRecordZoneChangesConfiguration.previousServerChangeToken`.
     pub const fn previous_server_change_token(&self) -> Option<&CKServerChangeToken> {
         self.previous_server_change_token.as_ref()
     }
 
+    /// Mirrors `CKFetchRecordZoneChangesConfiguration.resultsLimit`.
     pub const fn results_limit(&self) -> Option<usize> {
         self.results_limit
     }
 
+    /// Mirrors `CKFetchRecordZoneChangesConfiguration.desiredKeys`.
     pub fn desired_keys(&self) -> Option<&[String]> {
         self.desired_keys.as_deref()
     }
 
+    /// Sets the value mirroring `CKFetchRecordZoneChangesConfiguration.previousServerChangeToken`.
     pub fn with_previous_server_change_token(mut self, token: CKServerChangeToken) -> Self {
         self.previous_server_change_token = Some(token);
         self
     }
 
+    /// Sets the value mirroring `CKFetchRecordZoneChangesConfiguration.resultsLimit`.
     pub fn with_results_limit(mut self, results_limit: usize) -> Self {
         self.results_limit = Some(results_limit);
         self
     }
 
+    /// Sets the value mirroring `CKFetchRecordZoneChangesConfiguration.desiredKeys`.
     pub fn with_desired_keys(mut self, desired_keys: Vec<String>) -> Self {
         self.desired_keys = Some(desired_keys);
         self
@@ -513,6 +581,7 @@ impl Default for CKFetchRecordZoneChangesConfiguration {
     }
 }
 
+/// Wraps `CKFetchRecordZoneChangesOperation`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CKFetchRecordZoneChangesOperation {
     zones: Vec<(CKRecordZoneID, CKFetchRecordZoneChangesConfiguration)>,
@@ -520,6 +589,7 @@ pub struct CKFetchRecordZoneChangesOperation {
 }
 
 impl CKFetchRecordZoneChangesOperation {
+    /// Creates a wrapper mirroring `CKFetchRecordZoneChangesOperation`.
     pub fn new(record_zone_ids: Vec<CKRecordZoneID>) -> Self {
         Self {
             zones: record_zone_ids
@@ -530,14 +600,17 @@ impl CKFetchRecordZoneChangesOperation {
         }
     }
 
+    /// Mirrors `CKFetchRecordZoneChangesOperation.zones`.
     pub fn zones(&self) -> &[(CKRecordZoneID, CKFetchRecordZoneChangesConfiguration)] {
         &self.zones
     }
 
+    /// Mirrors `CKFetchRecordZoneChangesOperation.fetchAllChanges`.
     pub const fn fetch_all_changes(&self) -> bool {
         self.fetch_all_changes
     }
 
+    /// Sets the value mirroring `CKFetchRecordZoneChangesOperation.zoneConfiguration`.
     pub fn with_zone_configuration(
         mut self,
         zone_id: CKRecordZoneID,
@@ -555,11 +628,13 @@ impl CKFetchRecordZoneChangesOperation {
         self
     }
 
+    /// Sets the value mirroring `CKFetchRecordZoneChangesOperation.fetchAllChanges`.
     pub fn with_fetch_all_changes(mut self, fetch_all_changes: bool) -> Self {
         self.fetch_all_changes = fetch_all_changes;
         self
     }
 
+    /// Executes the corresponding `CloudKit` operation in `CKDatabase`.
     pub fn execute_in(
         &self,
         database: &CKDatabase,

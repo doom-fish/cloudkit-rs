@@ -2,41 +2,71 @@ use core::fmt;
 
 use serde::{Deserialize, Serialize};
 
+/// Mirrors `CKErrorDomain`.
 pub const CLOUDKIT_ERROR_DOMAIN: &str = "CKErrorDomain";
+/// Mirrors `CloudKitBridge`.
 pub const CLOUDKIT_BRIDGE_ERROR_DOMAIN: &str = "CloudKitBridge";
 
+/// Mirrors `CKError.Code`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum CloudKitErrorCode {
+    /// Mirrors `CKError.Code.bridgeInvalidArgument`.
     BridgeInvalidArgument,
+    /// Mirrors `CKError.Code.bridgeFailure`.
     BridgeFailure,
+    /// Mirrors `CKError.Code.bridgeTimedOut`.
     BridgeTimedOut,
+    /// Mirrors `CKError.Code.bridgeDefaultContainerUnavailable`.
     BridgeDefaultContainerUnavailable,
+    /// Mirrors `CKError.Code.internalError`.
     InternalError,
+    /// Mirrors `CKError.Code.partialFailure`.
     PartialFailure,
+    /// Mirrors `CKError.Code.networkUnavailable`.
     NetworkUnavailable,
+    /// Mirrors `CKError.Code.networkFailure`.
     NetworkFailure,
+    /// Mirrors `CKError.Code.badContainer`.
     BadContainer,
+    /// Mirrors `CKError.Code.serviceUnavailable`.
     ServiceUnavailable,
+    /// Mirrors `CKError.Code.requestRateLimited`.
     RequestRateLimited,
+    /// Mirrors `CKError.Code.missingEntitlement`.
     MissingEntitlement,
+    /// Mirrors `CKError.Code.notAuthenticated`.
     NotAuthenticated,
+    /// Mirrors `CKError.Code.permissionFailure`.
     PermissionFailure,
+    /// Mirrors `CKError.Code.unknownItem`.
     UnknownItem,
+    /// Mirrors `CKError.Code.invalidArguments`.
     InvalidArguments,
+    /// Mirrors `CKError.Code.serverRecordChanged`.
     ServerRecordChanged,
+    /// Mirrors `CKError.Code.operationCancelled`.
     OperationCancelled,
+    /// Mirrors `CKError.Code.badDatabase`.
     BadDatabase,
+    /// Mirrors `CKError.Code.zoneNotFound`.
     ZoneNotFound,
+    /// Mirrors `CKError.Code.limitExceeded`.
     LimitExceeded,
+    /// Mirrors `CKError.Code.unknown`.
     Unknown(i64),
 }
 
+/// Wraps `CKError` details.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CloudKitError {
+    /// Mirrors `CKError.domain`.
     pub domain: String,
+    /// Mirrors `CKError.code`.
     pub code: i64,
+    /// Mirrors `CKError.localizedDescription`.
     pub message: String,
+    /// Mirrors `CKErrorRetryAfterKey`.
     pub retry_after_seconds: Option<f64>,
 }
 
@@ -68,6 +98,7 @@ impl CloudKitError {
         }
     }
 
+    /// Mirrors `CKError.code`.
     #[must_use]
     pub fn kind(&self) -> CloudKitErrorCode {
         if self.domain == CLOUDKIT_BRIDGE_ERROR_DOMAIN {
@@ -106,6 +137,7 @@ impl CloudKitError {
         }
     }
 
+    /// Reports whether the wrapped `CKError` matches this convenience condition.
     #[must_use]
     pub fn is_entitlement_or_account_issue(&self) -> bool {
         matches!(
@@ -118,6 +150,7 @@ impl CloudKitError {
         )
     }
 
+    /// Reports whether the wrapped `CKError` matches this convenience condition.
     #[must_use]
     pub fn is_retryable(&self) -> bool {
         matches!(
@@ -129,11 +162,13 @@ impl CloudKitError {
         )
     }
 
+    /// Reports whether the wrapped `CKError` matches this convenience condition.
     #[must_use]
     pub fn is_missing_entitlement(&self) -> bool {
         matches!(self.kind(), CloudKitErrorCode::MissingEntitlement)
     }
 
+    /// Reports whether the wrapped `CKError` matches this convenience condition.
     #[must_use]
     pub fn is_not_authenticated(&self) -> bool {
         matches!(self.kind(), CloudKitErrorCode::NotAuthenticated)

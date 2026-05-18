@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.3] - 2026-05-18
+
+### Changed
+
+- Added one-line `///` docs across the public CloudKit wrapper surface, including modules, constants, sync/share/query types, and the optional async API, bringing the crate to full `missing_docs` coverage under `cargo rustdoc --all-features -- -D missing-docs`.
+
 ## [0.3.2] - 2026-05-18
 
 ### Changed

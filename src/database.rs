@@ -14,13 +14,18 @@ use crate::record::{CKRecord, CKRecordID, CKRecordZone, CKRecordZoneID};
 use crate::subscription::CKAnySubscription;
 use doom_fish_utils::panic_safe::catch_user_panic;
 
+/// Mirrors `CKDatabaseScope`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CKDatabaseScope {
+    /// Mirrors `CKDatabaseScope.public`.
     Public = 1,
+    /// Mirrors `CKDatabaseScope.private`.
     Private = 2,
+    /// Mirrors `CKDatabaseScope.shared`.
     Shared = 3,
 }
 
+/// Wraps `CKDatabase`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CKDatabase {
     container: CKContainer,
@@ -35,14 +40,17 @@ impl CKDatabase {
         }
     }
 
+    /// Mirrors `CKDatabase.databaseScope`.
     pub const fn database_scope(&self) -> CKDatabaseScope {
         self.database_scope
     }
 
+    /// Mirrors `CKDatabase.container`.
     pub const fn container(&self) -> &CKContainer {
         &self.container
     }
 
+    /// Mirrors `CKDatabase.saveRecord`.
     pub fn save_record(&self, record: &CKRecord) -> Result<CKRecord, CloudKitError> {
         let identifier = optional_cstring_from_str(
             self.container.container_identifier(),
@@ -71,6 +79,7 @@ impl CKDatabase {
         Ok(CKRecord::from_payload(payload))
     }
 
+    /// Mirrors `CKDatabase.fetchRecord`.
     pub fn fetch_record(&self, record_id: &CKRecordID) -> Result<CKRecord, CloudKitError> {
         let identifier = optional_cstring_from_str(
             self.container.container_identifier(),
@@ -100,6 +109,7 @@ impl CKDatabase {
         Ok(CKRecord::from_payload(payload))
     }
 
+    /// Mirrors `CKDatabase.deleteRecord`.
     pub fn delete_record(&self, record_id: &CKRecordID) -> Result<CKRecordID, CloudKitError> {
         let identifier = optional_cstring_from_str(
             self.container.container_identifier(),
@@ -129,6 +139,7 @@ impl CKDatabase {
         Ok(CKRecordID::from_payload(payload))
     }
 
+    /// Mirrors `CKDatabase.performQuery`.
     pub fn perform_query(
         &self,
         query: &CKQuery,
@@ -168,6 +179,7 @@ impl CKDatabase {
         Ok(payloads.into_iter().map(CKRecord::from_payload).collect())
     }
 
+    /// Wraps `CKDatabase.performQuery(_:completionHandler:)`.
     pub fn perform_query_with_completion_handler<F>(
         &self,
         query: &CKQuery,
@@ -201,6 +213,7 @@ impl CKDatabase {
         Ok(())
     }
 
+    /// Mirrors `CKDatabase.fetchQueryResults`.
     pub fn fetch_query_results(
         &self,
         query: &CKQuery,
@@ -250,6 +263,7 @@ impl CKDatabase {
         Ok(CKFetchedQueryResults::from_payload(payload))
     }
 
+    /// Mirrors `CKDatabase.fetchAllRecordZones`.
     pub fn fetch_all_record_zones(&self) -> Result<Vec<CKRecordZone>, CloudKitError> {
         let identifier = optional_cstring_from_str(
             self.container.container_identifier(),
@@ -280,6 +294,7 @@ impl CKDatabase {
             .collect())
     }
 
+    /// Mirrors `CKDatabase.fetchRecordZone`.
     pub fn fetch_record_zone(
         &self,
         zone_id: &CKRecordZoneID,
@@ -312,6 +327,7 @@ impl CKDatabase {
         Ok(CKRecordZone::from_payload(payload))
     }
 
+    /// Mirrors `CKDatabase.saveRecordZone`.
     pub fn save_record_zone(&self, zone: &CKRecordZone) -> Result<CKRecordZone, CloudKitError> {
         let identifier = optional_cstring_from_str(
             self.container.container_identifier(),
@@ -341,6 +357,7 @@ impl CKDatabase {
         Ok(CKRecordZone::from_payload(payload))
     }
 
+    /// Mirrors `CKDatabase.deleteRecordZone`.
     pub fn delete_record_zone(
         &self,
         zone_id: &CKRecordZoneID,
@@ -376,6 +393,7 @@ impl CKDatabase {
         Ok(CKRecordZoneID::from_payload(payload))
     }
 
+    /// Mirrors `CKDatabase.fetchSubscription`.
     pub fn fetch_subscription(
         &self,
         subscription_id: &str,
@@ -408,6 +426,7 @@ impl CKDatabase {
         Ok(CKAnySubscription::from_payload(payload))
     }
 
+    /// Mirrors `CKDatabase.fetchAllSubscriptions`.
     pub fn fetch_all_subscriptions(&self) -> Result<Vec<CKAnySubscription>, CloudKitError> {
         let identifier = optional_cstring_from_str(
             self.container.container_identifier(),
@@ -438,6 +457,7 @@ impl CKDatabase {
             .collect())
     }
 
+    /// Mirrors `CKDatabase.saveSubscription`.
     pub fn save_subscription<S>(&self, subscription: S) -> Result<CKAnySubscription, CloudKitError>
     where
         S: Into<CKAnySubscription>,
@@ -471,6 +491,7 @@ impl CKDatabase {
         Ok(CKAnySubscription::from_payload(payload))
     }
 
+    /// Mirrors `CKDatabase.deleteSubscription`.
     pub fn delete_subscription(&self, subscription_id: &str) -> Result<String, CloudKitError> {
         let identifier = optional_cstring_from_str(
             self.container.container_identifier(),

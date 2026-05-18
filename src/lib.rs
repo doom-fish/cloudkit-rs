@@ -18,29 +18,50 @@
     clippy::use_self
 )]
 
+/// Exposes `CloudKit` asset wrappers.
 pub mod asset;
+/// Exposes async `CloudKit` wrappers.
 #[cfg(feature = "async")]
 #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
 pub mod async_api;
+/// Exposes `CloudKit` framework constants.
 pub mod constants;
+/// Exposes `CloudKit` container wrappers.
 pub mod container;
+/// Exposes `CloudKit` database wrappers.
 pub mod database;
+/// Exposes `CloudKit` error wrappers.
 pub mod error;
+/// Exposes `CloudKit` fetched-result wrappers.
 pub mod fetched_results;
+/// Exposes the low-level `CloudKit` bridge module.
 pub mod ffi;
+/// Exposes `CloudKit` notification wrappers.
 pub mod notification;
+/// Exposes `CloudKit` notification-info wrappers.
 pub mod notification_info;
+/// Exposes `CloudKit` operation wrappers.
 pub mod operation;
 mod private;
+/// Exposes `CloudKit` query wrappers.
 pub mod query;
+/// Exposes `CloudKit` record wrappers.
 pub mod record;
+/// Exposes `CloudKit` record ID wrappers.
 pub mod record_id;
+/// Exposes `CloudKit` reference wrappers.
 pub mod reference_utility;
+/// Exposes `CloudKit` server-change-token wrappers.
 pub mod server_change_token;
+/// Exposes `CloudKit` sharing wrappers.
 pub mod share;
+/// Exposes `CloudKit` subscription wrappers.
 pub mod subscription;
+/// Exposes `CloudKit` sync-engine wrappers.
 pub mod sync_engine;
+/// Exposes `CloudKit` user-identity wrappers.
 pub mod user_identity;
+/// Exposes `CloudKit` record-zone wrappers.
 pub mod zone;
 
 pub use asset::CKAsset;
