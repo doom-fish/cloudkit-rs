@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.2] - 2026-05-18
+
+### Changed
+
+- Added `Debug` implementations for the async `*Future` public wrapper types so every public struct in the crate now exposes `Debug`.
+
 ## [0.3.1] - 2026-05-17
 
 ### Fixed

@@ -349,6 +349,80 @@ impl Future for FetchAllRecordZonesFuture {
     }
 }
 
+impl core::fmt::Debug for AccountStatusFuture {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("AccountStatusFuture")
+            .finish_non_exhaustive()
+    }
+}
+
+impl core::fmt::Debug for FetchUserRecordIdFuture {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("FetchUserRecordIdFuture")
+            .finish_non_exhaustive()
+    }
+}
+
+impl core::fmt::Debug for RequestApplicationPermissionFuture {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("RequestApplicationPermissionFuture")
+            .finish_non_exhaustive()
+    }
+}
+
+impl core::fmt::Debug for DiscoverUserIdentityFuture {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("DiscoverUserIdentityFuture")
+            .finish_non_exhaustive()
+    }
+}
+
+impl core::fmt::Debug for PerformQueryFuture {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("PerformQueryFuture").finish_non_exhaustive()
+    }
+}
+
+impl core::fmt::Debug for FetchRecordFuture {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("FetchRecordFuture").finish_non_exhaustive()
+    }
+}
+
+impl core::fmt::Debug for ModifyRecordsFuture {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("ModifyRecordsFuture")
+            .finish_non_exhaustive()
+    }
+}
+
+impl core::fmt::Debug for DeleteRecordFuture {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("DeleteRecordFuture").finish_non_exhaustive()
+    }
+}
+
+impl core::fmt::Debug for FetchQueryResultsFuture {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("FetchQueryResultsFuture")
+            .finish_non_exhaustive()
+    }
+}
+
+impl core::fmt::Debug for FetchDatabaseChangesFuture {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("FetchDatabaseChangesFuture")
+            .finish_non_exhaustive()
+    }
+}
+
+impl core::fmt::Debug for FetchAllRecordZonesFuture {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("FetchAllRecordZonesFuture")
+            .finish_non_exhaustive()
+    }
+}
+
 impl CKContainer {
     pub fn account_status_async(&self) -> AccountStatusFuture {
         let identifier =
