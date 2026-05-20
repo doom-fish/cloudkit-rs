@@ -182,3 +182,99 @@ impl fmt::Display for CloudKitError {
 }
 
 impl std::error::Error for CloudKitError {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bridge_kind_maps_known_codes() {
+        let cases = [
+            (-1, CloudKitErrorCode::BridgeInvalidArgument),
+            (-2, CloudKitErrorCode::BridgeFailure),
+            (-3, CloudKitErrorCode::BridgeTimedOut),
+            (-4, CloudKitErrorCode::BridgeDefaultContainerUnavailable),
+        ];
+
+        for (code, expected) in cases {
+            let error = CloudKitError::bridge(code, "bridge failure");
+            assert_eq!(error.kind(), expected);
+        }
+    }
+
+    #[test]
+    fn framework_kind_maps_known_codes() {
+        let cases = [
+            (1, CloudKitErrorCode::InternalError),
+            (8, CloudKitErrorCode::MissingEntitlement),
+            (9, CloudKitErrorCode::NotAuthenticated),
+            (27, CloudKitErrorCode::LimitExceeded),
+        ];
+
+        for (code, expected) in cases {
+            let error = CloudKitError {
+                domain: CLOUDKIT_ERROR_DOMAIN.into(),
+                code,
+                message: "framework failure".into(),
+                retry_after_seconds: Some(1.5),
+            };
+            assert_eq!(error.kind(), expected);
+        }
+    }
+
+    #[test]
+    fn unknown_domain_and_codes_stay_unknown() {
+        let foreign_error = CloudKitError {
+            domain: "OtherDomain".into(),
+            code: 999,
+            message: "foreign".into(),
+            retry_after_seconds: None,
+        };
+        let bridge_error = CloudKitError::bridge(-99, "unknown bridge code");
+
+        assert_eq!(foreign_error.kind(), CloudKitErrorCode::Unknown(999));
+        assert_eq!(bridge_error.kind(), CloudKitErrorCode::Unknown(-99));
+    }
+
+    #[test]
+    fn convenience_predicates_match_expected_kinds() {
+        let missing_entitlement = CloudKitError {
+            domain: CLOUDKIT_ERROR_DOMAIN.into(),
+            code: 8,
+            message: "missing entitlement".into(),
+            retry_after_seconds: None,
+        };
+        let not_authenticated = CloudKitError {
+            domain: CLOUDKIT_ERROR_DOMAIN.into(),
+            code: 9,
+            message: "not authenticated".into(),
+            retry_after_seconds: None,
+        };
+        let retryable = CloudKitError {
+            domain: CLOUDKIT_ERROR_DOMAIN.into(),
+            code: 7,
+            message: "slow down".into(),
+            retry_after_seconds: Some(2.5),
+        };
+
+        assert!(missing_entitlement.is_entitlement_or_account_issue());
+        assert!(missing_entitlement.is_missing_entitlement());
+        assert!(!missing_entitlement.is_not_authenticated());
+        assert!(not_authenticated.is_entitlement_or_account_issue());
+        assert!(not_authenticated.is_not_authenticated());
+        assert!(retryable.is_retryable());
+    }
+
+    #[test]
+    fn from_payload_and_display_preserve_fields() {
+        let error = CloudKitError::from_payload(ErrorPayload {
+            domain: CLOUDKIT_ERROR_DOMAIN.into(),
+            code: 7,
+            message: "retry later".into(),
+            retry_after_seconds: Some(2.5),
+        });
+
+        assert_eq!(error.retry_after_seconds, Some(2.5));
+        assert_eq!(error.to_string(), "retry later (7) [CKErrorDomain]");
+    }
+}

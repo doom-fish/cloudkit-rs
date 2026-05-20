@@ -619,6 +619,7 @@ impl CKRecord {
         self.share.as_ref()
     }
 
+
     /// Mirrors `CKRecord.changedKeys`.
     pub fn changed_keys(&self) -> &[String] {
         &self.changed_keys
@@ -793,5 +794,101 @@ impl CKRecordKeyValueSetting for CKRecord {
 
     fn changed_keys(&self) -> &[String] {
         self.changed_keys()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn zone_capabilities_support_bit_operations() {
+        let mut capabilities =
+            CKRecordZoneCapabilities::FETCH_CHANGES | CKRecordZoneCapabilities::SHARING;
+
+        assert_eq!(capabilities.bits(), 5);
+        assert!(capabilities.contains(CKRecordZoneCapabilities::FETCH_CHANGES));
+        assert!(capabilities.contains(CKRecordZoneCapabilities::SHARING));
+        assert!(!capabilities.contains(CKRecordZoneCapabilities::ATOMIC));
+
+        capabilities |= CKRecordZoneCapabilities::ATOMIC;
+
+        assert!(capabilities.contains(CKRecordZoneCapabilities::ATOMIC));
+        assert_eq!(capabilities.bits(), 7);
+    }
+
+    #[test]
+    fn encryption_scope_round_trips_known_and_unknown_values() {
+        assert_eq!(
+            CKRecordZoneEncryptionScope::from_raw(0),
+            CKRecordZoneEncryptionScope::PerRecord
+        );
+        assert_eq!(
+            CKRecordZoneEncryptionScope::from_raw(1),
+            CKRecordZoneEncryptionScope::PerZone
+        );
+        assert_eq!(
+            CKRecordZoneEncryptionScope::from_raw(42),
+            CKRecordZoneEncryptionScope::Unknown(42)
+        );
+        assert_eq!(CKRecordZoneEncryptionScope::PerZone.to_raw(), 1);
+        assert_eq!(CKRecordZoneEncryptionScope::Unknown(42).to_raw(), 42);
+    }
+
+    #[test]
+    fn zone_ids_round_trip_and_default_zone_matches_constants() {
+        let default_zone = CKRecordZoneID::default_zone();
+        let zone = CKRecordZoneID::new("CustomZone", "owner-1");
+
+        assert_eq!(default_zone.zone_name(), "_defaultZone");
+        assert_eq!(default_zone.owner_name(), "__defaultOwner__");
+        assert_eq!(CKRecordZoneID::from_payload(zone.to_payload()), zone);
+    }
+
+    #[test]
+    fn record_ids_round_trip_with_custom_zone() {
+        let zone = CKRecordZoneID::new("Photos", "owner-2");
+        let record_id = CKRecordID::with_zone("record-1", zone.clone());
+
+        assert_eq!(record_id.record_name(), "record-1");
+        assert_eq!(record_id.zone_id(), &zone);
+        assert_eq!(CKRecordID::from_payload(record_id.to_payload()), record_id);
+    }
+
+    #[test]
+    fn assets_round_trip_payloads() {
+        let asset = CKAsset::new("cover.heic");
+
+        assert_eq!(CKAsset::from_payload(asset.to_payload()), asset);
+    }
+
+    #[test]
+    fn record_values_round_trip_nested_payloads() {
+        let record_value = RecordValue::Array(vec![
+            RecordValue::from("headline"),
+            RecordValue::from(42_i32),
+            RecordValue::from(true),
+            RecordValue::Reference(CKReference::delete_self(CKRecordID::new("child"))),
+            RecordValue::from(CKAsset::new("cover.heic")),
+        ]);
+
+        assert_eq!(RecordValue::from_payload(record_value.to_payload()), record_value);
+    }
+
+    #[test]
+    fn records_with_zone_start_with_expected_defaults() {
+        let zone = CKRecordZoneID::new("Drafts", "owner-3");
+        let record = CKRecord::with_zone("Photo", zone.clone());
+
+        assert_eq!(record.record_type(), "Photo");
+        assert_eq!(record.record_id().record_name(), "");
+        assert_eq!(record.record_id().zone_id(), &zone);
+        assert!(record.record_change_tag().is_none());
+        assert!(record.creator_user_record_id().is_none());
+        assert!(record.creation_date().is_none());
+        assert!(record.last_modified_user_record_id().is_none());
+        assert!(record.modification_date().is_none());
+        assert!(record.parent().is_none());
+        assert!(record.share().is_none());
     }
 }

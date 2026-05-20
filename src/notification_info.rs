@@ -298,3 +298,92 @@ impl CKNotificationInfo {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_notification_info_matches_expected_flags() {
+        let info = CKNotificationInfo::new();
+
+        assert!(info.alert_body().is_none());
+        assert!(info.alert_localization_key().is_none());
+        assert!(info.alert_localization_args().is_none());
+        assert!(info.title().is_none());
+        assert!(info.desired_keys().is_none());
+        assert!(!info.should_badge());
+        assert!(info.should_send_content_available());
+        assert!(!info.should_send_mutable_content());
+        assert!(info.category().is_none());
+        assert!(info.collapse_id_key().is_none());
+    }
+
+    #[test]
+    fn alert_builders_populate_expected_accessors() {
+        let args = vec!["first".to_owned(), "second".to_owned()];
+        let info = CKNotificationInfo::new()
+            .with_alert_body("body")
+            .with_alert_localization_key("LOC_KEY")
+            .with_alert_localization_args(args.clone())
+            .with_alert_action_localization_key("ACTION_KEY")
+            .with_alert_launch_image("launch.png");
+
+        assert_eq!(info.alert_body(), Some("body"));
+        assert_eq!(info.alert_localization_key(), Some("LOC_KEY"));
+        assert_eq!(info.alert_localization_args(), Some(args.as_slice()));
+        assert_eq!(info.alert_action_localization_key(), Some("ACTION_KEY"));
+        assert_eq!(info.alert_launch_image(), Some("launch.png"));
+    }
+
+    #[test]
+    fn title_and_delivery_builders_populate_expected_accessors() {
+        let title_args = vec!["title".to_owned()];
+        let subtitle_args = vec!["subtitle".to_owned(), "detail".to_owned()];
+        let desired_keys = vec!["name".to_owned(), "updatedAt".to_owned()];
+        let info = CKNotificationInfo::new()
+            .with_title("Hello")
+            .with_title_localization_key("TITLE_KEY")
+            .with_title_localization_args(title_args.clone())
+            .with_subtitle("World")
+            .with_subtitle_localization_key("SUBTITLE_KEY")
+            .with_subtitle_localization_args(subtitle_args.clone())
+            .with_sound_name("ping.aiff")
+            .with_desired_keys(desired_keys.clone())
+            .with_should_badge(true)
+            .with_content_available(false)
+            .with_mutable_content(true)
+            .with_category("updates")
+            .with_collapse_id_key("thread-1");
+
+        assert_eq!(info.title(), Some("Hello"));
+        assert_eq!(info.title_localization_key(), Some("TITLE_KEY"));
+        assert_eq!(info.title_localization_args(), Some(title_args.as_slice()));
+        assert_eq!(info.subtitle(), Some("World"));
+        assert_eq!(info.subtitle_localization_key(), Some("SUBTITLE_KEY"));
+        assert_eq!(info.subtitle_localization_args(), Some(subtitle_args.as_slice()));
+        assert_eq!(info.sound_name(), Some("ping.aiff"));
+        assert_eq!(info.desired_keys(), Some(desired_keys.as_slice()));
+        assert!(info.should_badge());
+        assert!(!info.should_send_content_available());
+        assert!(info.should_send_mutable_content());
+        assert_eq!(info.category(), Some("updates"));
+        assert_eq!(info.collapse_id_key(), Some("thread-1"));
+    }
+
+    #[test]
+    fn payload_round_trip_preserves_notification_info() {
+        let info = CKNotificationInfo::new()
+            .with_alert_body("body")
+            .with_title("title")
+            .with_subtitle("subtitle")
+            .with_sound_name("ding.aiff")
+            .with_desired_keys(vec!["name".into(), "owner".into()])
+            .with_should_badge(true)
+            .with_mutable_content(true)
+            .with_category("updates")
+            .with_collapse_id_key("thread-7");
+
+        assert_eq!(CKNotificationInfo::from_payload(info.to_payload()), info);
+    }
+}
