@@ -501,12 +501,7 @@ pub(crate) fn opt_cstring_ptr(value: &Option<CString>) -> *const c_char {
 /// # Safety
 /// `ptr` must be either null or a valid pointer to a bridge-allocated null-terminated C string; this function frees the string via `ck_string_free`.
 pub(crate) unsafe fn take_string(ptr: *mut c_char) -> Option<String> {
-    if ptr.is_null() {
-        return None;
-    }
-    let string = CStr::from_ptr(ptr).to_string_lossy().into_owned();
-    ffi::ck_string_free(ptr);
-    Some(string)
+    doom_fish_utils::ffi_string::take_owned_cstring_c(ptr, |p| ffi::ck_string_free(p))
 }
 
 pub(crate) fn parse_json_str<T: DeserializeOwned>(
