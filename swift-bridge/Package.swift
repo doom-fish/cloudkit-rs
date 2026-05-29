@@ -15,7 +15,6 @@ let package = Package(
     targets: [
         .target(
             name: "CloudKitBridge",
-            path: "Sources/CloudKitBridge",
-            publicHeadersPath: "include")
+            path: "Sources/CloudKitBridge")
     ]
 )

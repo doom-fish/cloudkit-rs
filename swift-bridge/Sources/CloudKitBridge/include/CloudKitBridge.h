@@ -1,3 +1,0 @@
-#ifndef CLOUDKIT_BRIDGE_H
-#define CLOUDKIT_BRIDGE_H
-#endif
