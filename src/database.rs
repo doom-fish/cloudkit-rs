@@ -530,18 +530,23 @@ unsafe extern "C" fn query_callback_trampoline(
     // trampoline fires exactly once per query operation.
     catch_user_panic("cloudkit::query_callback_trampoline", || {
         let callback: Box<QueryCallback> = unsafe { Box::from_raw(refcon.cast()) };
-        let result = if error_json.is_null() {
+        let result = if !error_json.is_null() {
+            // SAFETY: `error_json` is non-null (checked above) and points to a valid
+            // null-terminated C string owned by the bridge.
+            Err(unsafe { parse_borrowed_error_ptr(error_json) })
+        } else if json.is_null() {
+            Err(CloudKitError::bridge(
+                -2,
+                "CloudKit bridge returned an empty query results payload",
+            ))
+        } else {
             let payloads = parse_json_str::<Vec<crate::private::CKRecordPayload>>(
-                // SAFETY: bridge guarantees `json` is a valid null-terminated C string when
-                // `error_json` is null.
+                // SAFETY: `json` is non-null (checked above) and the bridge guarantees it is a
+                // valid null-terminated C string when `error_json` is null.
                 &unsafe { std::ffi::CStr::from_ptr(json) }.to_string_lossy(),
                 "query results",
             );
             payloads.map(|payloads| payloads.into_iter().map(CKRecord::from_payload).collect())
-        } else {
-            // SAFETY: `error_json` is non-null (checked above) and points to a valid
-            // null-terminated C string owned by the bridge.
-            Err(unsafe { parse_borrowed_error_ptr(error_json) })
         };
         callback(result);
     });
