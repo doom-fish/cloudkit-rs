@@ -1,5 +1,126 @@
 # Changelog
 
+All notable changes to `cloudkit` are documented here.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.4.0] - Unreleased
+
+### Security
+
+- `CKQuery` and `CKQuerySubscription` no longer take raw predicate format
+  strings. Predicates are built from the typed `QueryPredicate` with `%K`
+  keys and `%@` values, so caller data cannot change a predicate's structure.
+  The raw escape hatch, `QueryPredicate::format(format, arguments)`, runs
+  inside an Objective-C `@try` shim and returns an error for unparsable
+  formats or missing arguments instead of aborting the process.
+
+### Fixed
+
+- Records no longer lose data in a fetch, modify, save cycle. Encoding handles
+  every CloudKit value type, including `CLLocation`, and fails loudly on a
+  value it cannot represent instead of skipping the field. Applying a record
+  payload no longer clears keys the payload does not mention; it removes only
+  keys that were removed with `CKRecord::remove_object`, which previously did
+  not delete the field on the server. Per-record encode failures inside
+  operations are reported as per-record errors, and changed records that
+  cannot be encoded fail a zone-changes fetch instead of vanishing.
+- `CKAsset` values could not cross the bridge at all: Rust sent and expected
+  `fileUrl` while Swift used `fileURL`. Assets now round-trip, and a fetched
+  asset without a local file is represented as `file_url() == None`.
+- Blocking calls cancel the CloudKit operation when their timeout expires and
+  then wait for CloudKit's final per-item results, so a timed-out save can no
+  longer keep running and commit after the caller received an error. Every
+  sync call now runs as a cancellable operation (record, zone and
+  subscription CRUD, queries, fetches, share metadata, share acceptance,
+  share access requests, share-participant lookup, web-auth tokens).
+- `CKLocationSortDescriptor` can be attached to a `CKQuery`.
+- Query cursors are resumable: `CKDatabase::fetch_query_results_from_cursor`,
+  `fetch_query_results_from_cursor_async` and `CKQueryOperation::with_cursor`
+  continue a query, and `QueryOperationResult::cursor` returns the cursor.
+- Inputs that made CloudKit raise an Objective-C exception, which aborted the
+  process, now return errors: parent references with a non-`None` action,
+  empty or over-long record names and zone names, empty owner names, invalid
+  or empty record types, invalid or reserved field keys, nested or mixed-type
+  lists, query subscriptions without a firing option, empty subscription IDs
+  and record types, and unknown `CKReferenceAction` values.
+- `CKContainer::container(id)` returns `BridgeContainerNotEntitled` instead of
+  letting CloudKit terminate the process when `id` is not in the process's
+  iCloud container entitlement.
+- The bridge no longer traps: the `as! CKDatabaseSubscription` cast became an
+  error for unknown subscription classes, `Int32(error.code)` conversions no
+  longer trap or report success for a zero error code, and duplicate zone IDs
+  in `CKFetchRecordZoneChangesOperation` no longer crash
+  `Dictionary(uniqueKeysWithValues:)`.
+- The fallback error JSON used when an error payload cannot be encoded is a
+  constant, properly escaped document instead of unescaped string
+  interpolation.
+- The async query path fails loudly instead of returning an empty list when a
+  record cannot be encoded.
+- Normalizing a share (`CKShare::with_title` and the other `with_*` setters)
+  reassigned `allowsAccessRequests` on every call, which terminated
+  unentitled processes and raises an exception for participants other than
+  the owner. The bridge now sets it only when the value changes.
+- `CKShare::with_public_permission(CKShareParticipantPermission::Unknown)`
+  made CloudKit raise an exception that aborted the process, and other
+  unknown raw values were stored unchecked. Both now return
+  `BridgeInvalidArgument`, and the bridge sets `publicPermission` only when
+  it changes.
+
+### Changed
+
+- **Breaking:** `CKQuery::new` and `CKQuerySubscription::new` take a
+  `QueryPredicate` instead of a format string. `CKQuery::predicate_format`
+  now builds the `NSPredicate` through the bridge and returns
+  `Result<String, CloudKitError>`. `CKQuerySubscription::predicate_format`
+  was replaced by `predicate()`; a fetched subscription reports the server's
+  predicate as `QueryPredicate::Format` text and re-saving it reuses the
+  archived server predicate.
+- **Breaking:** `CKQuery::sort_descriptors` returns `&[QuerySortDescriptor]`,
+  which holds either a `SortDescriptor` or a `CKLocationSortDescriptor`;
+  `with_sort_descriptor` and `set_sort_descriptors` accept either kind.
+- **Breaking:** `CKQuery`, `CKQueryOperation`, `CKQuerySubscription` and
+  `CKAnySubscription` no longer implement `Eq`/`Hash`, because predicates hold
+  floating-point values.
+- **Breaking:** `CKAsset::file_url` returns `Option<&Path>`.
+- **Breaking:** `CKRecord::set_parent_reference` returns
+  `Result<(), CloudKitError>` and rejects actions other than
+  `CKReferenceAction::None`.
+- **Breaking:** `CKSyncEngine` is documented as the local simulation it is.
+  `fetch_changes` and `send_changes` were renamed to `simulate_fetch_changes`
+  and `simulate_send_changes`; they never contacted CloudKit.
+- **Breaking:** `RecordValue` gained a `Location` variant (the enum was already
+  `#[non_exhaustive]`), and `QueryOperationResult` gained a `cursor` field.
+- Blocking calls default to a 30-second timeout that is now configurable with
+  `CKContainer::with_timeout`; `None` waits for CloudKit to finish.
+- `rust-version` is now 1.82 and `doom-fish-utils` must be `>=0.4.1, <0.5`.
+- COVERAGE.md and COVERAGE_AUDIT*.md no longer count Rust-only models as
+  VERIFIED: `CKSyncEngine*`, the `CKNotification` models, the
+  `CKOperation*` configuration types and the sharing-option models are listed
+  as MODELED, which puts bridged coverage at 77 of 134 non-exempt symbols.
+
+### Added
+
+- `QueryPredicate`, `ComparisonOperator` and `QuerySortDescriptor`.
+- `RecordLocation` and `RecordValue::Location`.
+- `CKContainer::with_timeout`, `CKContainer::timeout` and
+  `container::DEFAULT_TIMEOUT`.
+- `CKQueryOperation::cursor`/`with_cursor`,
+  `CKDatabase::fetch_query_results_from_cursor` and
+  `fetch_query_results_from_cursor_async`.
+- `CloudKitErrorCode::BridgeContainerNotEntitled`.
+
+### Removed
+
+- **Breaking:** `CKSyncEngine::cancel_operations`. The simulation never starts
+  CloudKit operations, so there was nothing to cancel.
+
+## [0.3.8] - 2026-06-06
+
+- Null-checked the JSON pointers in the CloudKit completion trampolines and
+  removed the vestigial Swift bridge C header.
+
 ## [0.3.7] - 2026-05-20
 
 - Migrated local `take_string` body to call `doom_fish_utils::ffi_string::take_owned_cstring_c`. Centralises the duplicated FFI take-string pattern fleet-wide. No public API change.

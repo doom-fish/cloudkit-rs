@@ -6,6 +6,13 @@ Safe Rust bindings for Apple's [CloudKit](https://developer.apple.com/documentat
 
 Requires macOS 13 or later and Rust 1.82 or later.
 
+## Installation
+
+```toml
+[dependencies]
+cloudkit = "0.4"
+```
+
 ## Quick start
 
 ```rust,no_run
