@@ -28,6 +28,12 @@ impl CKQueryCursor {
     pub(crate) fn from_payload(payload: CKQueryCursorPayload) -> Self {
         Self::from_archived_data(payload.archived_data)
     }
+
+    pub(crate) fn to_payload(&self) -> CKQueryCursorPayload {
+        CKQueryCursorPayload {
+            archived_data: self.archived_data.clone(),
+        }
+    }
 }
 
 /// Wraps `CKFetchedQueryResults`.

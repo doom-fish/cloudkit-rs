@@ -1,4 +1,5 @@
 import CloudKit
+import CloudKitObjCBridge
 import Foundation
 import Security
 
@@ -7,8 +8,10 @@ let CKR_INVALID_ARGUMENT: Int32 = -1
 let CKR_FAILURE: Int32 = -2
 let CKR_TIMED_OUT: Int32 = -3
 let CKR_DEFAULT_CONTAINER_UNAVAILABLE: Int32 = -4
+let CKR_CONTAINER_NOT_ENTITLED: Int32 = -5
 let CKR_BRIDGE_ERROR_DOMAIN = "CloudKitBridge"
 private let ckICloudContainerIdentifiersEntitlement = "com.apple.developer.icloud-container-identifiers" as CFString
+private let ckFallbackErrorJSON = "{\"domain\":\"CloudKitBridge\",\"code\":-2,\"message\":\"CloudKit bridge could not encode an error payload\",\"retryAfterSeconds\":null}"
 
 @_cdecl("ck_string_free")
 public func ckStringFree(_ string: UnsafeMutablePointer<CChar>?) {
@@ -58,8 +61,34 @@ func ckBridgeNSError(code: Int32, message: String) -> NSError {
     NSError(domain: CKR_BRIDGE_ERROR_DOMAIN, code: Int(code), userInfo: [NSLocalizedDescriptionKey: message])
 }
 
-func ckTimeoutNSError(_ label: String) -> NSError {
-    ckBridgeNSError(code: CKR_TIMED_OUT, message: "Timed out waiting for \(label)")
+func ckInvalidArgument(_ message: String) -> NSError {
+    ckBridgeNSError(code: CKR_INVALID_ARGUMENT, message: message)
+}
+
+func ckTimeoutNSError(_ label: String, timeoutSeconds: Double) -> NSError {
+    ckBridgeNSError(code: CKR_TIMED_OUT, message: "Timed out after \(timeoutSeconds) s waiting for \(label)")
+}
+
+func ckCancelledAfterTimeoutNSError(_ label: String, timeoutSeconds: Double, underlying: NSError?) -> NSError {
+    var message = "\(label) did not finish within \(timeoutSeconds) s and was cancelled; CloudKit may already have applied part of it, so fetch the affected items before retrying"
+    if let underlying {
+        message += " (\(underlying.domain) \(underlying.code): \(underlying.localizedDescription))"
+    }
+    return ckBridgeNSError(code: CKR_TIMED_OUT, message: message)
+}
+
+func ckFailureStatus(_ error: NSError) -> Int32 {
+    guard let code = Int32(exactly: error.code), code != CKR_OK else {
+        return CKR_FAILURE
+    }
+    return code
+}
+
+func ckObjCResult<T>(_ value: T?, _ error: NSError?, _ label: String) throws -> T {
+    if let value {
+        return value
+    }
+    throw error ?? ckInvalidArgument("\(label) failed")
 }
 
 func ckEncodeJSON<T: Encodable>(_ value: T) throws -> String {
@@ -105,46 +134,56 @@ func ckDecodeSecureCodingObject<T: NSObject & NSSecureCoding>(_ archivedData: [U
 }
 
 func ckErrorPayload(from error: NSError) -> CKErrorPayload {
-    CKErrorPayload(
+    let retryAfterSeconds = (error.userInfo[CKErrorRetryAfterKey] as? NSNumber)?.doubleValue
+    return CKErrorPayload(
         domain: error.domain,
         code: error.code,
         message: error.localizedDescription,
-        retryAfterSeconds: (error.userInfo[CKErrorRetryAfterKey] as? NSNumber)?.doubleValue
+        retryAfterSeconds: retryAfterSeconds.flatMap { $0.isFinite ? $0 : nil }
     )
+}
+
+func ckErrorJSON(_ error: NSError) -> String {
+    (try? ckEncodeJSON(ckErrorPayload(from: error))) ?? ckFallbackErrorJSON
 }
 
 func ckWriteError(_ error: NSError, to outError: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?) {
     guard let outError else { return }
-    let payload = ckErrorPayload(from: error)
-    let json = (try? ckEncodeJSON(payload)) ?? "{\"domain\":\"\(CKR_BRIDGE_ERROR_DOMAIN)\",\"code\":-2,\"message\":\"Unknown CloudKit bridge error\",\"retryAfterSeconds\":null}"
-    outError.pointee = ckCString(json)
+    outError.pointee = ckCString(ckErrorJSON(error))
 }
 
-func ckDefaultContainerIdentifier() -> String? {
+func ckEntitledContainerIdentifiers() -> [String] {
     guard let task = SecTaskCreateFromSelf(nil),
           let value = SecTaskCopyValueForEntitlement(task, ckICloudContainerIdentifiersEntitlement, nil) else {
-        return nil
+        return []
     }
 
     if let identifiers = value as? [String] {
-        return identifiers.first { !$0.isEmpty }
+        return identifiers.filter { !$0.isEmpty }
     }
     if let identifiers = value as? NSArray {
-        return identifiers.compactMap { $0 as? String }.first { !$0.isEmpty }
+        return identifiers.compactMap { $0 as? String }.filter { !$0.isEmpty }
     }
-    return nil
+    return []
 }
 
 func ckMakeContainer(_ identifier: UnsafePointer<CChar>?) throws -> CKContainer {
+    let entitledIdentifiers = ckEntitledContainerIdentifiers()
     if let identifier {
         let identifier = String(cString: identifier)
         guard !identifier.isEmpty else {
             throw ckBridgeNSError(code: CKR_INVALID_ARGUMENT, message: "CloudKit container identifier must not be empty")
         }
+        guard entitledIdentifiers.contains(identifier) else {
+            throw ckBridgeNSError(
+                code: CKR_CONTAINER_NOT_ENTITLED,
+                message: "CloudKit container \(identifier) is not listed in this process's com.apple.developer.icloud-container-identifiers entitlement. CloudKit terminates processes that open unentitled containers, so the bridge refuses to open it."
+            )
+        }
         return CKContainer(identifier: identifier)
     }
 
-    guard let identifier = ckDefaultContainerIdentifier() else {
+    guard let identifier = entitledIdentifiers.first else {
         throw ckBridgeNSError(
             code: CKR_DEFAULT_CONTAINER_UNAVAILABLE,
             message: "CloudKit default container is unavailable for this process because no iCloud container entitlement was found. Use CKContainer::container(\"iCloud.<container-id>\") or run inside a signed app bundle with CloudKit entitlements."
@@ -161,9 +200,26 @@ func ckMakeDatabase(containerIdentifier: UnsafePointer<CChar>?, scopeRaw: Int32)
     return container.database(with: scope)
 }
 
+func ckWait(_ semaphore: DispatchSemaphore, timeoutSeconds: Double) -> Bool {
+    guard timeoutSeconds >= 0 else {
+        semaphore.wait()
+        return true
+    }
+    return semaphore.wait(timeout: .now() + timeoutSeconds) == .success
+}
+
+func ckWaitCancellingOnTimeout(_ operation: Operation, _ finished: DispatchSemaphore, timeoutSeconds: Double) -> Bool {
+    if ckWait(finished, timeoutSeconds: timeoutSeconds) {
+        return false
+    }
+    operation.cancel()
+    finished.wait()
+    return true
+}
+
 func ckAwait<T>(
     label: String,
-    timeoutSeconds: TimeInterval = 30,
+    timeoutSeconds: Double,
     _ body: (@escaping (T?, NSError?) -> Void) -> Void
 ) throws -> T {
     let semaphore = DispatchSemaphore(value: 0)
@@ -174,8 +230,8 @@ func ckAwait<T>(
         semaphore.signal()
     }
 
-    if semaphore.wait(timeout: .now() + timeoutSeconds) == .timedOut {
-        throw ckTimeoutNSError(label)
+    if !ckWait(semaphore, timeoutSeconds: timeoutSeconds) {
+        throw ckTimeoutNSError(label, timeoutSeconds: timeoutSeconds)
     }
     if let error = holder.error {
         throw error
@@ -208,8 +264,7 @@ final class CKJSONStringCallbackBox: @unchecked Sendable {
     }
 
     func fail(error: NSError) {
-        let payload = (try? ckEncodeJSON(ckErrorPayload(from: error))) ?? "{\"domain\":\"\(error.domain)\",\"code\":\(error.code),\"message\":\"\(error.localizedDescription)\",\"retryAfterSeconds\":null}"
-        payload.withCString { callback(refcon, nil, $0) }
+        ckErrorJSON(error).withCString { callback(refcon, nil, $0) }
     }
 }
 
@@ -223,11 +278,11 @@ final class CKAccountStatusCallbackBox: @unchecked Sendable {
     }
 
     func complete(status: CKAccountStatus, error: NSError?) {
+        let rawStatus = Int32(clamping: status.rawValue)
         if let error {
-            let payload = (try? ckEncodeJSON(ckErrorPayload(from: error))) ?? "{\"domain\":\"\(error.domain)\",\"code\":\(error.code),\"message\":\"\(error.localizedDescription)\",\"retryAfterSeconds\":null}"
-            payload.withCString { callback(refcon, Int32(status.rawValue), $0) }
+            ckErrorJSON(error).withCString { callback(refcon, rawStatus, $0) }
             return
         }
-        callback(refcon, Int32(status.rawValue), nil)
+        callback(refcon, rawStatus, nil)
     }
 }

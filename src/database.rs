@@ -3,11 +3,12 @@ use core::ptr;
 
 use crate::container::CKContainer;
 use crate::error::CloudKitError;
-use crate::fetched_results::CKFetchedQueryResults;
+use crate::fetched_results::{CKFetchedQueryResults, CKQueryCursor};
 use crate::ffi;
 use crate::private::{
     box_closure, error_from_status, json_cstring, opt_cstring_ptr, optional_cstring_from_str,
-    parse_borrowed_error_ptr, parse_json_ptr, parse_json_str, CKFetchedQueryResultsPayload,
+    parse_borrowed_error_ptr, parse_json_ptr, parse_json_str, timeout_seconds,
+    CKFetchedQueryResultsPayload,
 };
 use crate::query::CKQuery;
 use crate::record::{CKRecord, CKRecordID, CKRecordZone, CKRecordZoneID};
@@ -65,8 +66,9 @@ impl CKDatabase {
                 opt_cstring_ptr(&identifier),
                 self.database_scope as i32,
                 record_json.as_ptr(),
-                &mut out_json,
-                &mut out_error,
+                timeout_seconds(self.container.timeout()),
+                &raw mut out_json,
+                &raw mut out_error,
             )
         };
         if status != ffi::status::OK {
@@ -94,8 +96,9 @@ impl CKDatabase {
                 opt_cstring_ptr(&identifier),
                 self.database_scope as i32,
                 record_id_json.as_ptr(),
-                &mut out_json,
-                &mut out_error,
+                timeout_seconds(self.container.timeout()),
+                &raw mut out_json,
+                &raw mut out_error,
             )
         };
         if status != ffi::status::OK {
@@ -124,8 +127,9 @@ impl CKDatabase {
                 opt_cstring_ptr(&identifier),
                 self.database_scope as i32,
                 record_id_json.as_ptr(),
-                &mut out_json,
-                &mut out_error,
+                timeout_seconds(self.container.timeout()),
+                &raw mut out_json,
+                &raw mut out_error,
             )
         };
         if status != ffi::status::OK {
@@ -164,8 +168,9 @@ impl CKDatabase {
                 self.database_scope as i32,
                 query_json.as_ptr(),
                 opt_cstring_ptr(&zone_json),
-                &mut out_json,
-                &mut out_error,
+                timeout_seconds(self.container.timeout()),
+                &raw mut out_json,
+                &raw mut out_error,
             )
         };
         if status != ffi::status::OK {
@@ -221,20 +226,43 @@ impl CKDatabase {
         desired_keys: Option<Vec<String>>,
         results_limit: Option<usize>,
     ) -> Result<CKFetchedQueryResults, CloudKitError> {
+        self.fetch_query_results_page(Some(query), None, zone_id, desired_keys, results_limit)
+    }
+
+    pub fn fetch_query_results_from_cursor(
+        &self,
+        cursor: &CKQueryCursor,
+        desired_keys: Option<Vec<String>>,
+        results_limit: Option<usize>,
+    ) -> Result<CKFetchedQueryResults, CloudKitError> {
+        self.fetch_query_results_page(None, Some(cursor), None, desired_keys, results_limit)
+    }
+
+    fn fetch_query_results_page(
+        &self,
+        query: Option<&CKQuery>,
+        cursor: Option<&CKQueryCursor>,
+        zone_id: Option<&CKRecordZoneID>,
+        desired_keys: Option<Vec<String>>,
+        results_limit: Option<usize>,
+    ) -> Result<CKFetchedQueryResults, CloudKitError> {
         let identifier = optional_cstring_from_str(
             self.container.container_identifier(),
             "container identifier",
         )?;
-        let query_json = json_cstring(&query.to_payload(), "query")?;
-        let zone_json = zone_id.map(CKRecordZoneID::to_payload);
-        let zone_json = match zone_json.as_ref() {
-            Some(zone) => Some(json_cstring(zone, "zone ID")?),
-            None => None,
-        };
-        let desired_keys_json = match desired_keys.as_ref() {
-            Some(desired_keys) => Some(json_cstring(desired_keys, "desired keys")?),
-            None => None,
-        };
+        let query_json = query
+            .map(|query| json_cstring(&query.to_payload(), "query"))
+            .transpose()?;
+        let cursor_json = cursor
+            .map(|cursor| json_cstring(&cursor.to_payload(), "query cursor"))
+            .transpose()?;
+        let zone_json = zone_id
+            .map(|zone_id| json_cstring(&zone_id.to_payload(), "zone ID"))
+            .transpose()?;
+        let desired_keys_json = desired_keys
+            .as_ref()
+            .map(|desired_keys| json_cstring(desired_keys, "desired keys"))
+            .transpose()?;
         let results_limit = i32::try_from(results_limit.unwrap_or_default())
             .map_err(|_| CloudKitError::bridge(-1, "results limit exceeds supported i32 range"))?;
         let mut out_json: *mut c_char = ptr::null_mut();
@@ -244,12 +272,14 @@ impl CKDatabase {
             ffi::ck_database_fetch_query_results_sync(
                 opt_cstring_ptr(&identifier),
                 self.database_scope as i32,
-                query_json.as_ptr(),
+                opt_cstring_ptr(&query_json),
+                opt_cstring_ptr(&cursor_json),
                 opt_cstring_ptr(&zone_json),
                 opt_cstring_ptr(&desired_keys_json),
                 results_limit,
-                &mut out_json,
-                &mut out_error,
+                timeout_seconds(self.container.timeout()),
+                &raw mut out_json,
+                &raw mut out_error,
             )
         };
         if status != ffi::status::OK {
@@ -276,8 +306,9 @@ impl CKDatabase {
             ffi::ck_database_fetch_all_record_zones_sync(
                 opt_cstring_ptr(&identifier),
                 self.database_scope as i32,
-                &mut out_json,
-                &mut out_error,
+                timeout_seconds(self.container.timeout()),
+                &raw mut out_json,
+                &raw mut out_error,
             )
         };
         if status != ffi::status::OK {
@@ -312,8 +343,9 @@ impl CKDatabase {
                 opt_cstring_ptr(&identifier),
                 self.database_scope as i32,
                 zone_json.as_ptr(),
-                &mut out_json,
-                &mut out_error,
+                timeout_seconds(self.container.timeout()),
+                &raw mut out_json,
+                &raw mut out_error,
             )
         };
         if status != ffi::status::OK {
@@ -342,8 +374,9 @@ impl CKDatabase {
                 opt_cstring_ptr(&identifier),
                 self.database_scope as i32,
                 zone_json.as_ptr(),
-                &mut out_json,
-                &mut out_error,
+                timeout_seconds(self.container.timeout()),
+                &raw mut out_json,
+                &raw mut out_error,
             )
         };
         if status != ffi::status::OK {
@@ -375,8 +408,9 @@ impl CKDatabase {
                 opt_cstring_ptr(&identifier),
                 self.database_scope as i32,
                 zone_json.as_ptr(),
-                &mut out_json,
-                &mut out_error,
+                timeout_seconds(self.container.timeout()),
+                &raw mut out_json,
+                &raw mut out_error,
             )
         };
         if status != ffi::status::OK {
@@ -411,8 +445,9 @@ impl CKDatabase {
                 opt_cstring_ptr(&identifier),
                 self.database_scope as i32,
                 subscription_id.as_ptr(),
-                &mut out_json,
-                &mut out_error,
+                timeout_seconds(self.container.timeout()),
+                &raw mut out_json,
+                &raw mut out_error,
             )
         };
         if status != ffi::status::OK {
@@ -439,8 +474,9 @@ impl CKDatabase {
             ffi::ck_database_fetch_all_subscriptions_sync(
                 opt_cstring_ptr(&identifier),
                 self.database_scope as i32,
-                &mut out_json,
-                &mut out_error,
+                timeout_seconds(self.container.timeout()),
+                &raw mut out_json,
+                &raw mut out_error,
             )
         };
         if status != ffi::status::OK {
@@ -476,8 +512,9 @@ impl CKDatabase {
                 opt_cstring_ptr(&identifier),
                 self.database_scope as i32,
                 subscription_json.as_ptr(),
-                &mut out_json,
-                &mut out_error,
+                timeout_seconds(self.container.timeout()),
+                &raw mut out_json,
+                &raw mut out_error,
             )
         };
         if status != ffi::status::OK {
@@ -506,8 +543,9 @@ impl CKDatabase {
                 opt_cstring_ptr(&identifier),
                 self.database_scope as i32,
                 subscription_id.as_ptr(),
-                &mut out_json,
-                &mut out_error,
+                timeout_seconds(self.container.timeout()),
+                &raw mut out_json,
+                &raw mut out_error,
             )
         };
         if status != ffi::status::OK {

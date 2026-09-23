@@ -2,12 +2,14 @@ import CloudKit
 import Foundation
 
 func ckEncodeAsset(_ asset: CKAsset) -> CKAssetPayload {
-    CKAssetPayload(fileURL: asset.fileURL?.path ?? "")
+    CKAssetPayload(fileURL: asset.fileURL?.path)
 }
 
-func ckDecodeAsset(_ payload: CKAssetPayload) -> CKAsset? {
-    guard !payload.fileURL.isEmpty else { return nil }
-    return CKAsset(fileURL: URL(fileURLWithPath: payload.fileURL))
+func ckDecodeAsset(_ payload: CKAssetPayload, key: String) throws -> CKAsset {
+    guard let fileURL = payload.fileURL, !fileURL.isEmpty else {
+        throw ckInvalidArgument("CKAsset for \(key) has no local file URL; CloudKit can only save assets backed by a file")
+    }
+    return CKAsset(fileURL: URL(fileURLWithPath: fileURL))
 }
 
 extension CKAsset {

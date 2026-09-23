@@ -17,7 +17,7 @@ use crate::container::{
 };
 use crate::database::CKDatabase;
 use crate::error::{CloudKitError, ErrorPayload};
-use crate::fetched_results::{CKFetchDatabaseChangesResult, CKFetchedQueryResults};
+use crate::fetched_results::{CKFetchDatabaseChangesResult, CKFetchedQueryResults, CKQueryCursor};
 use crate::ffi;
 use crate::operation::{
     CKFetchDatabaseChangesOperation, CKModifyRecordsOperation, CKRecordDeleteResult,
@@ -704,65 +704,73 @@ impl CKDatabase {
         desired_keys: Option<Vec<String>>,
         results_limit: Option<usize>,
     ) -> FetchQueryResultsFuture {
-        let identifier = match optional_cstring_from_str(
-            self.container().container_identifier(),
-            "container identifier",
-        ) {
-            Ok(identifier) => identifier,
-            Err(error) => {
-                return FetchQueryResultsFuture {
-                    inner: ready_error_future(error),
-                };
-            }
-        };
-        let query_json = match json_cstring(&query.to_payload(), "query") {
-            Ok(query_json) => query_json,
-            Err(error) => {
-                return FetchQueryResultsFuture {
-                    inner: ready_error_future(error),
-                };
-            }
-        };
-        let zone_payload = zone_id.map(CKRecordZoneID::to_payload);
-        let zone_json = match zone_payload
-            .as_ref()
-            .map(|zone| json_cstring(zone, "zone ID"))
-            .transpose()
-        {
-            Ok(zone_json) => zone_json,
-            Err(error) => {
-                return FetchQueryResultsFuture {
-                    inner: ready_error_future(error),
-                };
-            }
-        };
-        let desired_keys_json = match desired_keys
-            .as_ref()
-            .map(|desired_keys| json_cstring(desired_keys, "desired keys"))
-            .transpose()
-        {
-            Ok(desired_keys_json) => desired_keys_json,
-            Err(error) => {
-                return FetchQueryResultsFuture {
-                    inner: ready_error_future(error),
-                };
-            }
-        };
-        let Ok(results_limit) = i32::try_from(results_limit.unwrap_or_default()) else {
-            return FetchQueryResultsFuture {
-                inner: ready_error_future(CloudKitError::bridge(
-                    -1,
-                    "results limit exceeds supported i32 range",
-                )),
+        self.fetch_query_results_page_async(Some(query), None, zone_id, desired_keys, results_limit)
+    }
+
+    pub fn fetch_query_results_from_cursor_async(
+        &self,
+        cursor: &CKQueryCursor,
+        desired_keys: Option<Vec<String>>,
+        results_limit: Option<usize>,
+    ) -> FetchQueryResultsFuture {
+        self.fetch_query_results_page_async(None, Some(cursor), None, desired_keys, results_limit)
+    }
+
+    fn fetch_query_results_page_async(
+        &self,
+        query: Option<&CKQuery>,
+        cursor: Option<&CKQueryCursor>,
+        zone_id: Option<&CKRecordZoneID>,
+        desired_keys: Option<Vec<String>>,
+        results_limit: Option<usize>,
+    ) -> FetchQueryResultsFuture {
+        let prepared = (|| {
+            let identifier = optional_cstring_from_str(
+                self.container().container_identifier(),
+                "container identifier",
+            )?;
+            let query_json = query
+                .map(|query| json_cstring(&query.to_payload(), "query"))
+                .transpose()?;
+            let cursor_json = cursor
+                .map(|cursor| json_cstring(&cursor.to_payload(), "query cursor"))
+                .transpose()?;
+            let zone_json = zone_id
+                .map(|zone_id| json_cstring(&zone_id.to_payload(), "zone ID"))
+                .transpose()?;
+            let desired_keys_json = desired_keys
+                .as_ref()
+                .map(|desired_keys| json_cstring(desired_keys, "desired keys"))
+                .transpose()?;
+            let results_limit = i32::try_from(results_limit.unwrap_or_default()).map_err(|_| {
+                CloudKitError::bridge(-1, "results limit exceeds supported i32 range")
+            })?;
+            Ok::<_, CloudKitError>((
+                identifier,
+                query_json,
+                cursor_json,
+                zone_json,
+                desired_keys_json,
+                results_limit,
+            ))
+        })();
+        let (identifier, query_json, cursor_json, zone_json, desired_keys_json, results_limit) =
+            match prepared {
+                Ok(prepared) => prepared,
+                Err(error) => {
+                    return FetchQueryResultsFuture {
+                        inner: ready_error_future(error),
+                    };
+                }
             };
-        };
         let (future, context) = AsyncCompletion::create();
         // SAFETY: all C-string arguments are valid for the duration of the call; `context` is a valid `SyncCompletionPtr` consumed exactly once by the callback.
         unsafe {
             ffi::ck_database_fetch_query_results_async(
                 opt_cstring_ptr(&identifier),
                 self.database_scope() as i32,
-                query_json.as_ptr(),
+                opt_cstring_ptr(&query_json),
+                opt_cstring_ptr(&cursor_json),
                 opt_cstring_ptr(&zone_json),
                 opt_cstring_ptr(&desired_keys_json),
                 results_limit,

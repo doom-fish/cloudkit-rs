@@ -2,6 +2,7 @@ use core::ops::{BitOr, BitOrAssign};
 
 use crate::notification_info::CKNotificationInfo;
 use crate::private::{CKNotificationInfoPayload, CKSubscriptionPayload, CKSubscriptionPayloadKind};
+use crate::query::QueryPredicate;
 use crate::record::CKRecordZoneID;
 
 /// Mirrors `CKSubscriptionType`.
@@ -104,29 +105,31 @@ impl CKSubscription {
 }
 
 /// Wraps `CKQuerySubscription`.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct CKQuerySubscription {
     base: CKSubscription,
     record_type: String,
-    predicate_format: String,
+    predicate: Box<QueryPredicate>,
     zone_id: Option<CKRecordZoneID>,
     options: QuerySubscriptionOptions,
+    archived_data: Option<Vec<u8>>,
 }
 
 impl CKQuerySubscription {
     /// Creates a wrapper mirroring `CKQuerySubscription`.
     pub fn new(
         record_type: impl Into<String>,
-        predicate_format: impl Into<String>,
+        predicate: QueryPredicate,
         subscription_id: impl Into<String>,
         options: QuerySubscriptionOptions,
     ) -> Self {
         Self {
             base: CKSubscription::new(subscription_id, CKSubscriptionType::Query),
             record_type: record_type.into(),
-            predicate_format: predicate_format.into(),
+            predicate: Box::new(predicate),
             zone_id: None,
             options,
+            archived_data: None,
         }
     }
 
@@ -140,9 +143,9 @@ impl CKQuerySubscription {
         &self.record_type
     }
 
-    /// Mirrors `CKQuerySubscription.predicateFormat`.
-    pub fn predicate_format(&self) -> &str {
-        &self.predicate_format
+    /// Mirrors `CKQuerySubscription.predicate`.
+    pub fn predicate(&self) -> &QueryPredicate {
+        &self.predicate
     }
 
     /// Mirrors `CKQuerySubscription.zoneID`.
@@ -168,14 +171,18 @@ impl CKQuerySubscription {
     }
 
     pub(crate) fn from_payload(payload: CKSubscriptionPayload) -> Self {
+        let predicate = payload
+            .predicate_format
+            .map_or(QueryPredicate::True, |format| {
+                QueryPredicate::format(format, Vec::new())
+            });
         let mut subscription = Self::new(
             payload.record_type.unwrap_or_default(),
-            payload
-                .predicate_format
-                .unwrap_or_else(|| "TRUEPREDICATE".into()),
+            predicate,
             payload.subscription_id,
             QuerySubscriptionOptions(payload.query_subscription_options.unwrap_or_default()),
         );
+        subscription.archived_data = payload.archived_data;
         if let Some(zone_id) = payload.zone_id {
             subscription.zone_id = Some(CKRecordZoneID::from_payload(zone_id));
         }
@@ -193,9 +200,11 @@ impl CKQuerySubscription {
             subscription_type: self.base.subscription_type.to_raw(),
             notification_info: Some(self.base.notification_info.to_payload()),
             record_type: Some(self.record_type.clone()),
-            predicate_format: Some(self.predicate_format.clone()),
+            predicate: Some(self.predicate.to_payload()),
+            predicate_format: None,
             zone_id: self.zone_id.as_ref().map(CKRecordZoneID::to_payload),
             query_subscription_options: Some(self.options.bits()),
+            archived_data: self.archived_data.clone(),
         }
     }
 }
@@ -267,9 +276,11 @@ impl CKRecordZoneSubscription {
             subscription_type: self.base.subscription_type.to_raw(),
             notification_info: Some(self.base.notification_info.to_payload()),
             record_type: self.record_type.clone(),
+            predicate: None,
             predicate_format: None,
             zone_id: Some(self.zone_id.to_payload()),
             query_subscription_options: None,
+            archived_data: None,
         }
     }
 }
@@ -329,15 +340,17 @@ impl CKDatabaseSubscription {
             subscription_type: self.base.subscription_type.to_raw(),
             notification_info: Some(self.base.notification_info.to_payload()),
             record_type: self.record_type.clone(),
+            predicate: None,
             predicate_format: None,
             zone_id: None,
             query_subscription_options: None,
+            archived_data: None,
         }
     }
 }
 
 /// Mirrors `CKAnySubscription`.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
 pub enum CKAnySubscription {
     /// Mirrors `CKAnySubscription.query`.
@@ -420,5 +433,56 @@ impl From<CKDatabaseSubscription> for CKAnySubscription {
 impl From<CKNotificationInfoPayload> for CKNotificationInfo {
     fn from(value: CKNotificationInfoPayload) -> Self {
         CKNotificationInfo::from_payload(value)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fetched_query_subscriptions_keep_their_server_archive() {
+        let fetched = CKQuerySubscription::from_payload(CKSubscriptionPayload {
+            kind: CKSubscriptionPayloadKind::Query,
+            subscription_id: "sub".into(),
+            subscription_type: 1,
+            notification_info: None,
+            record_type: Some("Task".into()),
+            predicate: None,
+            predicate_format: Some("owner == <CKReference: 0x1>".into()),
+            zone_id: None,
+            query_subscription_options: Some(
+                QuerySubscriptionOptions::FIRES_ON_RECORD_CREATION.bits(),
+            ),
+            archived_data: Some(vec![1, 2, 3]),
+        });
+
+        assert_eq!(
+            fetched.predicate(),
+            &QueryPredicate::format("owner == <CKReference: 0x1>", Vec::new())
+        );
+
+        let payload = fetched
+            .with_zone_id(CKRecordZoneID::new("Tasks", "__defaultOwner__"))
+            .to_payload();
+        assert_eq!(payload.archived_data, Some(vec![1, 2, 3]));
+        assert!(payload.zone_id.is_some());
+    }
+
+    #[test]
+    fn new_query_subscriptions_send_a_typed_predicate() {
+        let payload = CKQuerySubscription::new(
+            "Task",
+            QueryPredicate::True,
+            "sub",
+            QuerySubscriptionOptions::FIRES_ON_RECORD_UPDATE,
+        )
+        .to_payload();
+
+        assert!(payload.archived_data.is_none());
+        assert!(matches!(
+            payload.predicate,
+            Some(crate::private::PredicatePayload::TruePredicate)
+        ));
     }
 }

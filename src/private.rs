@@ -1,6 +1,7 @@
 use core::ffi::{c_char, c_void};
 use std::collections::BTreeMap;
 use std::ffi::{CStr, CString};
+use std::time::Duration;
 
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -34,36 +35,66 @@ pub(crate) struct CKReferencePayload {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct CKAssetPayload {
-    pub file_url: String,
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub(crate) enum RecordValueKind {
-    String,
-    Int,
-    Double,
-    Bool,
-    Bytes,
-    Date,
-    Asset,
-    Reference,
-    Array,
+    #[serde(rename = "fileURL")]
+    pub file_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct CKRecordValuePayload {
-    pub kind: RecordValueKind,
-    pub string_value: Option<String>,
-    pub int_value: Option<i64>,
-    pub double_value: Option<f64>,
-    pub bool_value: Option<bool>,
-    pub bytes_value: Option<Vec<u8>>,
-    pub date_value: Option<String>,
-    pub asset_value: Option<CKAssetPayload>,
-    pub reference_value: Option<CKReferencePayload>,
-    pub array_value: Option<Vec<CKRecordValuePayload>>,
+pub(crate) struct CKLocationPayload {
+    pub latitude: f64,
+    pub longitude: f64,
+    pub altitude: f64,
+    pub horizontal_accuracy: f64,
+    pub vertical_accuracy: f64,
+    pub course: f64,
+    pub speed: f64,
+    pub timestamp: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub(crate) enum CKRecordValuePayload {
+    String {
+        #[serde(rename = "stringValue")]
+        value: String,
+    },
+    Int {
+        #[serde(rename = "intValue")]
+        value: i64,
+    },
+    Double {
+        #[serde(rename = "doubleValue")]
+        value: f64,
+    },
+    Bool {
+        #[serde(rename = "boolValue")]
+        value: bool,
+    },
+    Bytes {
+        #[serde(rename = "bytesValue")]
+        value: Vec<u8>,
+    },
+    Date {
+        #[serde(rename = "dateValue")]
+        value: String,
+    },
+    Asset {
+        #[serde(rename = "assetValue")]
+        value: CKAssetPayload,
+    },
+    Reference {
+        #[serde(rename = "referenceValue")]
+        value: CKReferencePayload,
+    },
+    Location {
+        #[serde(rename = "locationValue")]
+        value: CKLocationPayload,
+    },
+    Array {
+        #[serde(rename = "arrayValue")]
+        value: Vec<CKRecordValuePayload>,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -102,13 +133,76 @@ pub(crate) struct CKRecordZonePayload {
 pub(crate) struct SortDescriptorPayload {
     pub key: String,
     pub ascending: bool,
+    pub relative_location: Option<CKLocationPayload>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum ComparisonOperatorPayload {
+    Equal,
+    NotEqual,
+    LessThan,
+    LessThanOrEqual,
+    GreaterThan,
+    GreaterThanOrEqual,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub(crate) enum PredicatePayload {
+    TruePredicate,
+    FalsePredicate,
+    Comparison {
+        key: String,
+        comparison: ComparisonOperatorPayload,
+        value: CKRecordValuePayload,
+    },
+    BeginsWith {
+        key: String,
+        text: String,
+    },
+    IsIn {
+        key: String,
+        values: Vec<CKRecordValuePayload>,
+    },
+    NotIn {
+        key: String,
+        values: Vec<CKRecordValuePayload>,
+    },
+    ListContains {
+        key: String,
+        value: CKRecordValuePayload,
+    },
+    Between {
+        key: String,
+        values: Vec<CKRecordValuePayload>,
+    },
+    ContainsTokens {
+        text: String,
+    },
+    WithinDistance {
+        key: String,
+        location: CKLocationPayload,
+        #[serde(rename = "radiusKilometers")]
+        radius_kilometers: f64,
+    },
+    And {
+        subpredicates: Vec<PredicatePayload>,
+    },
+    Not {
+        subpredicates: Vec<PredicatePayload>,
+    },
+    Format {
+        format: String,
+        arguments: Vec<CKRecordValuePayload>,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct CKQueryPayload {
     pub record_type: String,
-    pub predicate_format: String,
+    pub predicate: PredicatePayload,
     pub sort_descriptors: Vec<SortDescriptorPayload>,
 }
 
@@ -155,11 +249,13 @@ pub(crate) struct CKSubscriptionPayload {
     #[serde(rename = "notificationInfo")]
     pub notification_info: Option<CKNotificationInfoPayload>,
     pub record_type: Option<String>,
+    pub predicate: Option<PredicatePayload>,
     pub predicate_format: Option<String>,
     #[serde(rename = "zoneID")]
     pub zone_id: Option<CKRecordZoneIDPayload>,
     #[serde(rename = "querySubscriptionOptions")]
     pub query_subscription_options: Option<u64>,
+    pub archived_data: Option<Vec<u8>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -303,6 +399,7 @@ pub(crate) struct CKModifyRecordsResultPayload {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct CKQueryOperationPayload {
     pub query: CKQueryPayload,
+    pub cursor: Option<CKQueryCursorPayload>,
     #[serde(rename = "zoneID")]
     pub zone_id: Option<CKRecordZoneIDPayload>,
     pub desired_keys: Option<Vec<String>>,
@@ -325,6 +422,7 @@ pub(crate) struct CKQueryOperationResultPayload {
     pub matches: Vec<CKQueryMatchResultPayload>,
     #[serde(rename = "cursorReturned")]
     pub cursor_returned: bool,
+    pub cursor: Option<CKQueryCursorPayload>,
     #[serde(rename = "operationError")]
     pub operation_error: Option<ErrorPayload>,
 }
@@ -492,6 +590,10 @@ pub(crate) fn json_cstring<T: Serialize>(
     cstring_from_str(&json, context)
 }
 
+pub(crate) fn timeout_seconds(timeout: Option<Duration>) -> f64 {
+    timeout.map_or(-1.0, |timeout| timeout.as_secs_f64())
+}
+
 pub(crate) fn opt_cstring_ptr(value: &Option<CString>) -> *const c_char {
     value
         .as_ref()
@@ -577,4 +679,120 @@ where
     F: Send + 'static,
 {
     Box::into_raw(Box::new(closure)).cast::<c_void>()
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::*;
+    use crate::record::{CKAsset, RecordLocation, RecordValue};
+
+    #[test]
+    fn record_values_without_their_payload_are_rejected() {
+        for value in [
+            json!({"kind": "string"}),
+            json!({"kind": "int", "stringValue": "5"}),
+            json!({"kind": "location", "locationValue": {"latitude": 1.0}}),
+            json!({"kind": "unknownKind", "stringValue": "x"}),
+        ] {
+            assert!(
+                serde_json::from_value::<CKRecordValuePayload>(value.clone()).is_err(),
+                "{value}"
+            );
+        }
+    }
+
+    #[test]
+    fn record_values_decode_the_swift_wire_format() {
+        let asset: CKRecordValuePayload =
+            serde_json::from_value(json!({"kind": "asset", "assetValue": {"fileURL": "/tmp/a"}}))
+                .expect("Swift encodes CKAsset.fileURL under fileURL");
+        assert_eq!(
+            RecordValue::from_payload(asset),
+            RecordValue::Asset(CKAsset::new("/tmp/a"))
+        );
+
+        let missing_file: CKRecordValuePayload =
+            serde_json::from_value(json!({"kind": "asset", "assetValue": {}}))
+                .expect("CKAsset.fileURL may be nil");
+        assert!(matches!(
+            RecordValue::from_payload(missing_file),
+            RecordValue::Asset(asset) if asset.file_url().is_none()
+        ));
+
+        let location: CKRecordValuePayload = serde_json::from_value(json!({
+            "kind": "location",
+            "locationValue": {
+                "latitude": 59.3,
+                "longitude": 18.0,
+                "altitude": 12.0,
+                "horizontalAccuracy": 5.0,
+                "verticalAccuracy": 3.0,
+                "course": 90.0,
+                "speed": 1.5,
+                "timestamp": "2023-11-14T22:13:20.000Z"
+            }
+        }))
+        .expect("Swift encodes CLLocation values");
+        assert_eq!(
+            RecordValue::from_payload(location),
+            RecordValue::Location(RecordLocation {
+                latitude: 59.3,
+                longitude: 18.0,
+                altitude: 12.0,
+                horizontal_accuracy: 5.0,
+                vertical_accuracy: 3.0,
+                course: 90.0,
+                speed: 1.5,
+                timestamp: Some("2023-11-14T22:13:20.000Z".into()),
+            })
+        );
+    }
+
+    #[test]
+    fn record_values_encode_the_swift_wire_format() {
+        let encoded = serde_json::to_value(
+            RecordValue::Array(vec![
+                RecordValue::Asset(CKAsset::new("/tmp/a")),
+                RecordValue::Location(RecordLocation::new(1.0, 2.0)),
+                RecordValue::Int(i64::MAX),
+            ])
+            .to_payload(),
+        )
+        .expect("record values serialize");
+
+        assert_eq!(encoded["kind"], "array");
+        assert_eq!(encoded["arrayValue"][0]["assetValue"]["fileURL"], "/tmp/a");
+        assert_eq!(encoded["arrayValue"][1]["kind"], "location");
+        assert_eq!(
+            encoded["arrayValue"][1]["locationValue"]["verticalAccuracy"],
+            -1.0
+        );
+        assert_eq!(encoded["arrayValue"][2]["intValue"], i64::MAX);
+    }
+
+    #[test]
+    fn record_values_round_trip_every_kind() {
+        let value = RecordValue::Array(vec![
+            RecordValue::String("s".into()),
+            RecordValue::Int(-3),
+            RecordValue::Double(0.25),
+            RecordValue::Bool(false),
+            RecordValue::Bytes(vec![0, 255]),
+            RecordValue::Date("2024-01-01T00:00:00.000Z".into()),
+            RecordValue::Asset(CKAsset::new("/tmp/b")),
+            RecordValue::Location(RecordLocation::new(-33.9, 151.2)),
+        ]);
+        let json = serde_json::to_string(&value.to_payload()).expect("serialize");
+        let decoded: CKRecordValuePayload = serde_json::from_str(&json).expect("deserialize");
+
+        assert_eq!(RecordValue::from_payload(decoded), value);
+    }
+
+    #[test]
+    fn timeouts_map_to_bridge_seconds() {
+        assert!((timeout_seconds(None) + 1.0).abs() < f64::EPSILON);
+        assert!((timeout_seconds(Some(Duration::from_millis(1500))) - 1.5).abs() < f64::EPSILON);
+    }
 }

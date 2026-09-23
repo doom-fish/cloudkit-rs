@@ -11,12 +11,12 @@ final class CKPermissionStatusCallbackBox: @unchecked Sendable {
     }
 
     func complete(status: CKContainer.ApplicationPermissionStatus, error: NSError?) {
+        let rawStatus = Int32(clamping: status.rawValue)
         if let error {
-            let payload = (try? ckEncodeJSON(ckErrorPayload(from: error))) ?? "{\"domain\":\"\(error.domain)\",\"code\":\(error.code),\"message\":\"\(error.localizedDescription)\",\"retryAfterSeconds\":null}"
-            payload.withCString { callback(refcon, Int32(status.rawValue), $0) }
+            ckErrorJSON(error).withCString { callback(refcon, rawStatus, $0) }
             return
         }
-        callback(refcon, Int32(status.rawValue), nil)
+        callback(refcon, rawStatus, nil)
     }
 }
 
@@ -38,7 +38,7 @@ private func ckDiscoverUserIdentity(
         return
     }
     if let userRecordID = lookupInfo.userRecordID {
-        container.discoverUserIdentity(withUserRecordID: ckDecodeRecordID(userRecordID)) { identity, error in
+        container.discoverUserIdentity(withUserRecordID: try ckDecodeRecordID(userRecordID)) { identity, error in
             completion(identity, error as NSError?)
         }
         return
@@ -51,68 +51,26 @@ private func ckEncodeModifyRecordsResult(
     saveResultsByID: [CKRecord.ID: Result<CKRecord, Error>] = [:],
     deleteResultsByID: [CKRecord.ID: Result<Void, Error>] = [:],
     operationError: NSError? = nil
-) -> CKModifyRecordsResultPayload {
-    var savedRecords: [CKRecordPayload] = []
-    var deletedRecordIDs: [CKRecordIDPayload] = []
-    var saveResults: [CKRecordSaveResultPayload] = []
-    var deleteResults: [CKRecordDeleteResultPayload] = []
-
+) throws -> CKModifyRecordsResultPayload {
+    var saves: [(CKRecord.ID, Result<CKRecord, Error>)] = []
     for requestedRecord in request.recordsToSave {
-        let recordID = ckDecodeRecordID(requestedRecord.recordID)
-        guard let saveResult = saveResultsByID[recordID] else { continue }
-        switch saveResult {
-        case .success(let record):
-            let payload = try? ckEncodeRecord(record)
-            if let payload {
-                savedRecords.append(payload)
-            }
-            saveResults.append(
-                CKRecordSaveResultPayload(
-                    recordID: ckEncodeRecordID(recordID),
-                    record: payload,
-                    error: nil
-                )
-            )
-        case .failure(let error):
-            saveResults.append(
-                CKRecordSaveResultPayload(
-                    recordID: ckEncodeRecordID(recordID),
-                    record: nil,
-                    error: ckErrorPayload(from: error as NSError)
-                )
-            )
+        let recordID = try ckDecodeRecordID(requestedRecord.recordID)
+        if let saveResult = saveResultsByID[recordID] {
+            saves.append((recordID, saveResult))
         }
     }
-
+    var deletes: [(CKRecord.ID, Result<Void, Error>)] = []
     for requestedRecordID in request.recordIDsToDelete {
-        let recordID = ckDecodeRecordID(requestedRecordID)
-        guard let deleteResult = deleteResultsByID[recordID] else { continue }
-        switch deleteResult {
-        case .success:
-            deletedRecordIDs.append(ckEncodeRecordID(recordID))
-            deleteResults.append(
-                CKRecordDeleteResultPayload(
-                    recordID: ckEncodeRecordID(recordID),
-                    error: nil
-                )
-            )
-        case .failure(let error):
-            deleteResults.append(
-                CKRecordDeleteResultPayload(
-                    recordID: ckEncodeRecordID(recordID),
-                    error: ckErrorPayload(from: error as NSError)
-                )
-            )
+        let recordID = try ckDecodeRecordID(requestedRecordID)
+        if let deleteResult = deleteResultsByID[recordID] {
+            deletes.append((recordID, deleteResult))
         }
     }
-
-    return CKModifyRecordsResultPayload(
-        savedRecords: savedRecords,
-        deletedRecordIDs: deletedRecordIDs,
-        saveResults: saveResults,
-        deleteResults: deleteResults,
-        operationError: operationError.map(ckErrorPayload)
+    let outcome = CKModifyRecordsOutcome(
+        saves: CKOperationOutcome(results: saves, operationError: operationError, timedOut: false),
+        deletes: deletes
     )
+    return ckEncodeModifyRecordsOutcome(outcome, label: "CKDatabase.modifyRecords", timeoutSeconds: -1)
 }
 
 private func ckEncodeDatabaseChangesResult(
@@ -230,7 +188,7 @@ public func ckDatabaseFetchRecordAsync(
     do {
         let database = try ckMakeDatabase(containerIdentifier: containerIdentifier, scopeRaw: databaseScope)
         let recordIDPayload = try ckDecodeJSON(recordIDJSON, as: CKRecordIDPayload.self)
-        database.fetch(withRecordID: ckDecodeRecordID(recordIDPayload)) { record, error in
+        database.fetch(withRecordID: try ckDecodeRecordID(recordIDPayload)) { record, error in
             let box: CKJSONStringCallbackBox = ckUnretained(boxPtr, as: CKJSONStringCallbackBox.self)
             defer { ckRelease(boxPtr) }
             if let error = error as NSError? {
@@ -265,8 +223,8 @@ public func ckDatabaseModifyRecordsAsync(
         let database = try ckMakeDatabase(containerIdentifier: containerIdentifier, scopeRaw: databaseScope)
         let payload = try ckDecodeJSON(operationJSON, as: CKModifyRecordsOperationPayload.self)
         let recordsToSave = try payload.recordsToSave.map(ckDecodeRecord)
-        let recordIDsToDelete = payload.recordIDsToDelete.map(ckDecodeRecordID)
-        let savePolicy = CKModifyRecordsOperation.RecordSavePolicy(rawValue: Int(payload.savePolicy)) ?? .ifServerRecordUnchanged
+        let recordIDsToDelete = try payload.recordIDsToDelete.map(ckDecodeRecordID)
+        let savePolicy = try ckSavePolicy(payload.savePolicy)
 
         database.modifyRecords(
             saving: recordsToSave,
@@ -280,14 +238,14 @@ public func ckDatabaseModifyRecordsAsync(
                 let encodedResult: CKModifyRecordsResultPayload
                 switch result {
                 case .success(let output):
-                    encodedResult = ckEncodeModifyRecordsResult(
+                    encodedResult = try ckEncodeModifyRecordsResult(
                         request: payload,
                         saveResultsByID: output.saveResults,
                         deleteResultsByID: output.deleteResults,
                         operationError: nil
                     )
                 case .failure(let error):
-                    encodedResult = ckEncodeModifyRecordsResult(
+                    encodedResult = try ckEncodeModifyRecordsResult(
                         request: payload,
                         operationError: error as NSError
                     )
@@ -316,7 +274,7 @@ public func ckDatabaseDeleteRecordAsync(
     do {
         let database = try ckMakeDatabase(containerIdentifier: containerIdentifier, scopeRaw: databaseScope)
         let recordIDPayload = try ckDecodeJSON(recordIDJSON, as: CKRecordIDPayload.self)
-        database.delete(withRecordID: ckDecodeRecordID(recordIDPayload)) { recordID, error in
+        database.delete(withRecordID: try ckDecodeRecordID(recordIDPayload)) { recordID, error in
             let box: CKJSONStringCallbackBox = ckUnretained(boxPtr, as: CKJSONStringCallbackBox.self)
             defer { ckRelease(boxPtr) }
             if let error = error as NSError? {
@@ -343,6 +301,7 @@ public func ckDatabaseFetchQueryResultsAsync(
     _ containerIdentifier: UnsafePointer<CChar>?,
     _ databaseScope: Int32,
     _ queryJSON: UnsafePointer<CChar>?,
+    _ cursorJSON: UnsafePointer<CChar>?,
     _ zoneIDJSON: UnsafePointer<CChar>?,
     _ desiredKeysJSON: UnsafePointer<CChar>?,
     _ resultsLimit: Int32,
@@ -352,38 +311,24 @@ public func ckDatabaseFetchQueryResultsAsync(
     let boxPtr = ckRetain(CKJSONStringCallbackBox(callback: callback, refcon: refcon))
     do {
         let database = try ckMakeDatabase(containerIdentifier: containerIdentifier, scopeRaw: databaseScope)
-        let query = ckDecodeQuery(try ckDecodeJSON(queryJSON, as: CKQueryPayload.self))
-        let zoneID = try zoneIDJSON.map { try ckDecodeJSON($0, as: CKRecordZoneIDPayload.self) }.map(ckDecodeZoneID)
+        let cursor = try cursorJSON.map { try ckDecodeQueryCursor(try ckDecodeJSON($0, as: CKQueryCursorPayload.self)) }
+        let query = try queryJSON.map { try ckDecodeQuery(try ckDecodeJSON($0, as: CKQueryPayload.self)) }
+        let zoneID = try zoneIDJSON.map { try ckDecodeZoneID(try ckDecodeJSON($0, as: CKRecordZoneIDPayload.self)) }
         let desiredKeys = try desiredKeysJSON.map { try ckDecodeJSON($0, as: [String].self) }
         let limit = resultsLimit > 0 ? Int(resultsLimit) : CKQueryOperation.maximumResults
 
-        database.fetch(withQuery: query, inZoneWith: zoneID, desiredKeys: desiredKeys, resultsLimit: limit) { result in
+        let completion: (Result<(matchResults: [(CKRecord.ID, Result<CKRecord, Error>)], queryCursor: CKQueryOperation.Cursor?), Error>) -> Void = { result in
             let box: CKJSONStringCallbackBox = ckUnretained(boxPtr, as: CKJSONStringCallbackBox.self)
             defer { ckRelease(boxPtr) }
             switch result {
             case .success(let output):
                 do {
-                    let records = try output.matchResults.compactMap { try? $0.1.get() }.map(ckEncodeRecord)
-                    let matches = try output.matchResults.map { recordID, recordResult in
-                        switch recordResult {
-                        case .success(let record):
-                            return CKQueryMatchResultPayload(
-                                recordID: ckEncodeRecordID(recordID),
-                                record: try ckEncodeRecord(record),
-                                error: nil
-                            )
-                        case .failure(let error):
-                            return CKQueryMatchResultPayload(
-                                recordID: ckEncodeRecordID(recordID),
-                                record: nil,
-                                error: ckErrorPayload(from: error as NSError)
-                            )
-                        }
-                    }
+                    let outcome = CKOperationOutcome(results: output.matchResults, operationError: nil, timedOut: false)
+                    let (records, matches) = ckEncodeQueryMatches(outcome)
                     let payload = CKFetchedQueryResultsPayload(
                         records: records,
                         matches: matches,
-                        cursor: output.queryCursor.map(ckEncodeQueryCursor),
+                        cursor: try output.queryCursor.map(ckEncodeQueryCursor),
                         operationError: nil
                     )
                     box.succeed(json: try ckEncodeJSON(payload))
@@ -393,6 +338,14 @@ public func ckDatabaseFetchQueryResultsAsync(
             case .failure(let error):
                 box.fail(error: error as NSError)
             }
+        }
+
+        if let cursor {
+            database.fetch(withCursor: cursor, desiredKeys: desiredKeys, resultsLimit: limit, completionHandler: completion)
+        } else if let query {
+            database.fetch(withQuery: query, inZoneWith: zoneID, desiredKeys: desiredKeys, resultsLimit: limit, completionHandler: completion)
+        } else {
+            throw ckInvalidArgument("fetching query results needs a query or a cursor")
         }
     } catch let error as NSError {
         let box: CKJSONStringCallbackBox = ckUnretained(boxPtr, as: CKJSONStringCallbackBox.self)

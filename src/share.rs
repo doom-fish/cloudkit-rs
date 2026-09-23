@@ -124,8 +124,9 @@ impl CKShareParticipant {
     pub fn one_time_url_participant() -> Result<Self, CloudKitError> {
         let mut out_json: *mut c_char = ptr::null_mut();
         let mut out_error: *mut c_char = ptr::null_mut();
-        let status =
-            unsafe { ffi::ck_share_create_one_time_url_participant(&mut out_json, &mut out_error) };
+        let status = unsafe {
+            ffi::ck_share_create_one_time_url_participant(&raw mut out_json, &raw mut out_error)
+        };
         if status != ffi::status::OK {
             return Err(unsafe { error_from_status(status, out_error) });
         }
@@ -259,8 +260,8 @@ impl CKShare {
         let status = unsafe {
             ffi::ck_share_create_root_record(
                 root_record_json.as_ptr(),
-                &mut out_json,
-                &mut out_error,
+                &raw mut out_json,
+                &raw mut out_error,
             )
         };
         if status != ffi::status::OK {
@@ -276,7 +277,11 @@ impl CKShare {
         let mut out_json: *mut c_char = ptr::null_mut();
         let mut out_error: *mut c_char = ptr::null_mut();
         let status = unsafe {
-            ffi::ck_share_create_zone_wide(zone_json.as_ptr(), &mut out_json, &mut out_error)
+            ffi::ck_share_create_zone_wide(
+                zone_json.as_ptr(),
+                &raw mut out_json,
+                &raw mut out_error,
+            )
         };
         if status != ffi::status::OK {
             return Err(unsafe { error_from_status(status, out_error) });
@@ -414,8 +419,9 @@ impl CKShare {
         let share_json = json_cstring(&self.to_payload(), "share")?;
         let mut out_json: *mut c_char = ptr::null_mut();
         let mut out_error: *mut c_char = ptr::null_mut();
-        let status =
-            unsafe { ffi::ck_share_normalize(share_json.as_ptr(), &mut out_json, &mut out_error) };
+        let status = unsafe {
+            ffi::ck_share_normalize(share_json.as_ptr(), &raw mut out_json, &raw mut out_error)
+        };
         if status != ffi::status::OK {
             return Err(unsafe { error_from_status(status, out_error) });
         }

@@ -9,7 +9,7 @@ use crate::error::CloudKitError;
 use crate::ffi;
 use crate::private::{
     cstring_from_str, error_from_status, json_cstring, opt_cstring_ptr, optional_cstring_from_str,
-    parse_json_ptr, CKShareMetadataPayload,
+    parse_json_ptr, timeout_seconds, CKShareMetadataPayload,
 };
 use crate::record::{CKRecordZone, CKRecordZoneID};
 use crate::share::{CKShare, CKShareMetadata, CKShareParticipant};
@@ -908,8 +908,9 @@ impl CKFetchWebAuthTokenOperation {
                 opt_cstring_ptr(&identifier),
                 database.database_scope() as i32,
                 api_token.as_ptr(),
-                &mut out_json,
-                &mut out_error,
+                timeout_seconds(database.container().timeout()),
+                &raw mut out_json,
+                &raw mut out_error,
             )
         };
         if status != ffi::status::OK {
@@ -1140,8 +1141,9 @@ impl CKFetchShareMetadataOperation {
                     share_url.as_ptr(),
                     self.should_fetch_root_record,
                     opt_cstring_ptr(&desired_keys_json),
-                    &mut out_json,
-                    &mut out_error,
+                    timeout_seconds(container.timeout()),
+                    &raw mut out_json,
+                    &raw mut out_error,
                 )
             };
             if status == ffi::status::OK {
@@ -1258,8 +1260,9 @@ impl CKAcceptSharesOperation {
                 ffi::ck_container_accept_share_metadata_sync(
                     opt_cstring_ptr(&identifier),
                     share_metadata_json.as_ptr(),
-                    &mut out_json,
-                    &mut out_error,
+                    timeout_seconds(container.timeout()),
+                    &raw mut out_json,
+                    &raw mut out_error,
                 )
             };
             if status == ffi::status::OK {
@@ -1367,7 +1370,8 @@ impl CKShareRequestAccessOperation {
                 ffi::ck_container_request_share_access_sync(
                     opt_cstring_ptr(&identifier),
                     share_url.as_ptr(),
-                    &mut out_error,
+                    timeout_seconds(container.timeout()),
+                    &raw mut out_error,
                 )
             };
             results.push(CKShareAccessRequestResult {

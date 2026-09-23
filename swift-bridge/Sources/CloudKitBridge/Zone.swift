@@ -5,7 +5,7 @@ extension CKRecordZone {
         ckEncodeZone(self)
     }
 
-    static func fromBridgePayload(_ payload: CKRecordZonePayload) -> CKRecordZone {
-        ckDecodeZone(payload)
+    static func fromBridgePayload(_ payload: CKRecordZonePayload) throws -> CKRecordZone {
+        try ckDecodeZone(payload)
     }
 }

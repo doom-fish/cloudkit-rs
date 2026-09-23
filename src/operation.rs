@@ -5,11 +5,13 @@ use crate::database::CKDatabase;
 use crate::error::CloudKitError;
 use crate::fetched_results::{
     CKFetchDatabaseChangesResult, CKFetchRecordZoneChangesResult, CKFetchRecordsResult,
+    CKQueryCursor,
 };
 use crate::ffi;
 use crate::private::{
     error_from_status, json_cstring, opt_cstring_ptr, optional_cstring_from_str, parse_json_ptr,
-    CKFetchDatabaseChangesOperationPayload, CKFetchRecordZoneChangesConfigurationEntryPayload,
+    timeout_seconds, CKFetchDatabaseChangesOperationPayload,
+    CKFetchRecordZoneChangesConfigurationEntryPayload,
     CKFetchRecordZoneChangesConfigurationPayload, CKFetchRecordZoneChangesOperationPayload,
     CKFetchRecordZoneChangesResultPayload, CKFetchRecordsOperationPayload,
     CKFetchRecordsResultPayload, CKModifyRecordsOperationPayload, CKModifyRecordsResultPayload,
@@ -85,6 +87,7 @@ pub struct QueryOperationResult {
     pub matches: Vec<QueryMatchResult>,
     /// Mirrors `QueryOperationResult.cursorReturned`.
     pub cursor_returned: bool,
+    pub cursor: Option<CKQueryCursor>,
     /// Mirrors `QueryOperationResult.operationError`.
     pub operation_error: Option<crate::error::CloudKitError>,
 }
@@ -170,8 +173,9 @@ impl CKModifyRecordsOperation {
                 opt_cstring_ptr(&identifier),
                 database.database_scope() as i32,
                 operation_json.as_ptr(),
-                &mut out_json,
-                &mut out_error,
+                timeout_seconds(database.container().timeout()),
+                &raw mut out_json,
+                &raw mut out_error,
             )
         };
         if status != ffi::status::OK {
@@ -218,9 +222,10 @@ impl CKModifyRecordsOperation {
 }
 
 /// Wraps `CKQueryOperation`.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct CKQueryOperation {
     query: CKQuery,
+    cursor: Option<CKQueryCursor>,
     zone_id: Option<CKRecordZoneID>,
     desired_keys: Option<Vec<String>>,
     results_limit: Option<usize>,
@@ -231,6 +236,7 @@ impl CKQueryOperation {
     pub fn new(query: CKQuery) -> Self {
         Self {
             query,
+            cursor: None,
             zone_id: None,
             desired_keys: None,
             results_limit: None,
@@ -240,6 +246,15 @@ impl CKQueryOperation {
     /// Mirrors `CKQueryOperation.query`.
     pub fn query(&self) -> &CKQuery {
         &self.query
+    }
+
+    pub const fn cursor(&self) -> Option<&CKQueryCursor> {
+        self.cursor.as_ref()
+    }
+
+    pub fn with_cursor(mut self, cursor: CKQueryCursor) -> Self {
+        self.cursor = Some(cursor);
+        self
     }
 
     /// Mirrors `CKQueryOperation.zoneID`.
@@ -283,6 +298,7 @@ impl CKQueryOperation {
         )?;
         let payload = CKQueryOperationPayload {
             query: self.query.to_payload(),
+            cursor: self.cursor.as_ref().map(CKQueryCursor::to_payload),
             zone_id: self.zone_id.as_ref().map(CKRecordZoneID::to_payload),
             desired_keys: self.desired_keys.clone(),
             results_limit: self.results_limit,
@@ -296,8 +312,9 @@ impl CKQueryOperation {
                 opt_cstring_ptr(&identifier),
                 database.database_scope() as i32,
                 operation_json.as_ptr(),
-                &mut out_json,
-                &mut out_error,
+                timeout_seconds(database.container().timeout()),
+                &raw mut out_json,
+                &raw mut out_error,
             )
         };
         if status != ffi::status::OK {
@@ -324,6 +341,7 @@ impl CKQueryOperation {
                 })
                 .collect(),
             cursor_returned: payload.cursor_returned,
+            cursor: payload.cursor.map(CKQueryCursor::from_payload),
             operation_error: payload
                 .operation_error
                 .map(crate::error::CloudKitError::from_payload),
@@ -382,8 +400,9 @@ impl CKFetchRecordsOperation {
                 opt_cstring_ptr(&identifier),
                 database.database_scope() as i32,
                 operation_json.as_ptr(),
-                &mut out_json,
-                &mut out_error,
+                timeout_seconds(database.container().timeout()),
+                &raw mut out_json,
+                &raw mut out_error,
             )
         };
         if status != ffi::status::OK {
@@ -487,8 +506,9 @@ impl CKFetchDatabaseChangesOperation {
                 opt_cstring_ptr(&identifier),
                 database.database_scope() as i32,
                 operation_json.as_ptr(),
-                &mut out_json,
-                &mut out_error,
+                timeout_seconds(database.container().timeout()),
+                &raw mut out_json,
+                &raw mut out_error,
             )
         };
         if status != ffi::status::OK {
@@ -665,8 +685,9 @@ impl CKFetchRecordZoneChangesOperation {
                 opt_cstring_ptr(&identifier),
                 database.database_scope() as i32,
                 operation_json.as_ptr(),
-                &mut out_json,
-                &mut out_error,
+                timeout_seconds(database.container().timeout()),
+                &raw mut out_json,
+                &raw mut out_error,
             )
         };
         if status != ffi::status::OK {

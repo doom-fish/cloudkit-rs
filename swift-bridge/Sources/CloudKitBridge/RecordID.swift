@@ -5,8 +5,8 @@ extension CKRecordZone.ID {
         ckEncodeZoneID(self)
     }
 
-    static func fromBridgePayload(_ payload: CKRecordZoneIDPayload) -> CKRecordZone.ID {
-        ckDecodeZoneID(payload)
+    static func fromBridgePayload(_ payload: CKRecordZoneIDPayload) throws -> CKRecordZone.ID {
+        try ckDecodeZoneID(payload)
     }
 }
 
@@ -15,7 +15,7 @@ extension CKRecord.ID {
         ckEncodeRecordID(self)
     }
 
-    static func fromBridgePayload(_ payload: CKRecordIDPayload) -> CKRecord.ID {
-        ckDecodeRecordID(payload)
+    static func fromBridgePayload(_ payload: CKRecordIDPayload) throws -> CKRecord.ID {
+        try ckDecodeRecordID(payload)
     }
 }

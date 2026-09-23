@@ -17,6 +17,13 @@ func ckDecodeServerChangeToken(_ payload: CKServerChangeTokenPayload) throws -> 
     try ckDecodeSecureCodingObject(payload.archivedData, as: CKServerChangeToken.self)
 }
 
-func ckEncodeQueryCursor(_ cursor: CKQueryOperation.Cursor) -> CKQueryCursorPayload {
-    CKQueryCursorPayload(archivedData: (try? ckArchiveSecureCoding(cursor)) ?? [])
+func ckEncodeQueryCursor(_ cursor: CKQueryOperation.Cursor) throws -> CKQueryCursorPayload {
+    CKQueryCursorPayload(archivedData: try ckArchiveSecureCoding(cursor))
+}
+
+func ckDecodeQueryCursor(_ payload: CKQueryCursorPayload) throws -> CKQueryOperation.Cursor {
+    guard !payload.archivedData.isEmpty else {
+        throw ckInvalidArgument("CKQueryOperation.Cursor archive is empty")
+    }
+    return try ckDecodeSecureCodingObject(payload.archivedData, as: CKQueryOperation.Cursor.self)
 }

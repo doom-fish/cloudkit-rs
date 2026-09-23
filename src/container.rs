@@ -1,12 +1,13 @@
 use core::ffi::{c_char, c_void};
 use core::ptr;
+use std::time::Duration;
 
 use crate::database::{CKDatabase, CKDatabaseScope};
 use crate::error::CloudKitError;
 use crate::ffi;
 use crate::private::{
     box_closure, error_from_status, json_cstring, opt_cstring_ptr, optional_cstring_from_str,
-    parse_borrowed_error_ptr, parse_json_ptr, parse_json_str,
+    parse_borrowed_error_ptr, parse_json_ptr, parse_json_str, timeout_seconds,
 };
 use crate::record::CKRecordID;
 use crate::share::CKShareParticipant;
@@ -133,10 +134,13 @@ impl core::ops::BitOrAssign for CKApplicationPermissions {
     }
 }
 
+pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
+
 /// Wraps `CKContainer`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CKContainer {
     identifier: Option<String>,
+    timeout: Option<Duration>,
 }
 
 impl Default for CKContainer {
@@ -148,7 +152,10 @@ impl Default for CKContainer {
 impl CKContainer {
     /// Creates a wrapper mirroring `CKContainer`.
     pub fn new() -> Self {
-        Self { identifier: None }
+        Self {
+            identifier: None,
+            timeout: Some(DEFAULT_TIMEOUT),
+        }
     }
 
     /// Returns the default wrapper mirroring `CKContainer`.
@@ -160,7 +167,17 @@ impl CKContainer {
     pub fn container(identifier: impl Into<String>) -> Self {
         Self {
             identifier: Some(identifier.into()),
+            timeout: Some(DEFAULT_TIMEOUT),
         }
+    }
+
+    pub fn with_timeout(mut self, timeout: Option<Duration>) -> Self {
+        self.timeout = timeout;
+        self
+    }
+
+    pub const fn timeout(&self) -> Option<Duration> {
+        self.timeout
     }
 
     /// Mirrors `CKContainer.containerIdentifier`.
@@ -198,8 +215,9 @@ impl CKContainer {
         let status = unsafe {
             ffi::ck_container_account_status_sync(
                 opt_cstring_ptr(&identifier),
-                &mut out_status,
-                &mut out_error,
+                timeout_seconds(self.timeout),
+                &raw mut out_status,
+                &raw mut out_error,
             )
         };
         if status != ffi::status::OK {
@@ -240,8 +258,9 @@ impl CKContainer {
         let status = unsafe {
             ffi::ck_container_fetch_user_record_id_sync(
                 opt_cstring_ptr(&identifier),
-                &mut out_json,
-                &mut out_error,
+                timeout_seconds(self.timeout),
+                &raw mut out_json,
+                &raw mut out_error,
             )
         };
         if status != ffi::status::OK {
@@ -291,8 +310,9 @@ impl CKContainer {
             ffi::ck_container_discover_user_identity_sync(
                 opt_cstring_ptr(&identifier),
                 lookup_json.as_ptr(),
-                &mut out_json,
-                &mut out_error,
+                timeout_seconds(self.timeout),
+                &raw mut out_json,
+                &raw mut out_error,
             )
         };
         if status != ffi::status::OK {
@@ -347,8 +367,9 @@ impl CKContainer {
             ffi::ck_container_fetch_share_participant_sync(
                 opt_cstring_ptr(&identifier),
                 lookup_json.as_ptr(),
-                &mut out_json,
-                &mut out_error,
+                timeout_seconds(self.timeout),
+                &raw mut out_json,
+                &raw mut out_error,
             )
         };
         if status != ffi::status::OK {

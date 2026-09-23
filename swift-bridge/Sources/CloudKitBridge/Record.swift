@@ -1,4 +1,5 @@
 import CloudKit
+import CloudKitObjCBridge
 import Foundation
 
 @_cdecl("ck_record_create")
@@ -11,12 +12,15 @@ public func ckRecordCreate(
         guard let recordType else {
             throw ckBridgeNSError(code: CKR_INVALID_ARGUMENT, message: "Missing record type")
         }
-        let record = CKRecord(recordType: String(cString: recordType))
+        var error: NSError?
+        let recordID = CKRecord.ID(recordName: UUID().uuidString)
+        let created = CKXRecordCreate(String(cString: recordType), recordID, &error)
+        let record = try ckObjCResult(created, error, "CKRecord(recordType:)")
         let payload = try ckEncodeRecord(record)
         outJSON?.pointee = ckCString(try ckEncodeJSON(payload))
         return CKR_OK
     } catch let error as NSError {
         ckWriteError(error, to: outErrorJSON)
-        return Int32(error.code)
+        return ckFailureStatus(error)
     }
 }

@@ -14,7 +14,12 @@ let package = Package(
     ],
     targets: [
         .target(
+            name: "CloudKitObjCBridge",
+            path: "Sources/CloudKitObjCBridge",
+            publicHeadersPath: "include"),
+        .target(
             name: "CloudKitBridge",
+            dependencies: ["CloudKitObjCBridge"],
             path: "Sources/CloudKitBridge")
     ]
 )

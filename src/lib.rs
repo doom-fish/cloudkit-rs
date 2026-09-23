@@ -81,8 +81,11 @@ pub use fetched_results::{
 pub use notification::*;
 pub use notification_info::CKNotificationInfo;
 pub use operation::*;
-pub use query::{CKLocationSortDescriptor, CKQuery, SortDescriptor};
-pub use record::{CKRecord, CKRecordKeyValueSetting, RecordValue};
+pub use query::{
+    CKLocationSortDescriptor, CKQuery, ComparisonOperator, QueryPredicate, QuerySortDescriptor,
+    SortDescriptor,
+};
+pub use record::{CKRecord, CKRecordKeyValueSetting, RecordLocation, RecordValue};
 pub use record_id::CKRecordID;
 pub use reference_utility::{CKReference, CKReferenceAction};
 pub use server_change_token::CKServerChangeToken;
@@ -116,8 +119,11 @@ pub mod prelude {
     pub use crate::notification::*;
     pub use crate::notification_info::CKNotificationInfo;
     pub use crate::operation::*;
-    pub use crate::query::{CKLocationSortDescriptor, CKQuery, SortDescriptor};
-    pub use crate::record::{CKRecord, CKRecordKeyValueSetting, RecordValue};
+    pub use crate::query::{
+        CKLocationSortDescriptor, CKQuery, ComparisonOperator, QueryPredicate, QuerySortDescriptor,
+        SortDescriptor,
+    };
+    pub use crate::record::{CKRecord, CKRecordKeyValueSetting, RecordLocation, RecordValue};
     pub use crate::record_id::CKRecordID;
     pub use crate::reference_utility::{CKReference, CKReferenceAction};
     pub use crate::server_change_token::CKServerChangeToken;

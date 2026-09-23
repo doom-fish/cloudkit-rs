@@ -8,7 +8,7 @@ fn main() {
 
     let query = CKQuerySubscription::new(
         "Task",
-        "TRUEPREDICATE",
+        QueryPredicate::True,
         "task-query-sub",
         QuerySubscriptionOptions::FIRES_ON_RECORD_CREATION,
     )

@@ -1,4 +1,6 @@
 import CloudKit
+import CloudKitObjCBridge
+import CoreLocation
 import Foundation
 
 let ckISO8601Formatter: ISO8601DateFormatter = {
@@ -16,6 +18,7 @@ enum CKRecordValueKind: String, Codable {
     case date
     case asset
     case reference
+    case location
     case array
 }
 
@@ -35,7 +38,18 @@ struct CKReferencePayload: Codable {
 }
 
 struct CKAssetPayload: Codable {
-    var fileURL: String
+    var fileURL: String?
+}
+
+struct CKLocationPayload: Codable {
+    var latitude: Double
+    var longitude: Double
+    var altitude: Double
+    var horizontalAccuracy: Double
+    var verticalAccuracy: Double
+    var course: Double
+    var speed: Double
+    var timestamp: String?
 }
 
 struct CKRecordValuePayload: Codable {
@@ -48,7 +62,12 @@ struct CKRecordValuePayload: Codable {
     var dateValue: String?
     var assetValue: CKAssetPayload?
     var referenceValue: CKReferencePayload?
+    var locationValue: CKLocationPayload?
     var arrayValue: [CKRecordValuePayload]?
+
+    init(kind: CKRecordValueKind) {
+        self.kind = kind
+    }
 }
 
 struct CKRecordPayload: Codable {
@@ -72,17 +91,6 @@ struct CKRecordZonePayload: Codable {
     var capabilities: UInt64
     var share: CKReferencePayload?
     var encryptionScope: Int?
-}
-
-struct SortDescriptorPayload: Codable {
-    var key: String
-    var ascending: Bool
-}
-
-struct CKQueryPayload: Codable {
-    var recordType: String
-    var predicateFormat: String
-    var sortDescriptors: [SortDescriptorPayload]
 }
 
 struct CKModifyRecordsOperationPayload: Codable {
@@ -113,6 +121,7 @@ struct CKModifyRecordsResultPayload: Codable {
 
 struct CKQueryOperationPayload: Codable {
     var query: CKQueryPayload
+    var cursor: CKQueryCursorPayload?
     var zoneID: CKRecordZoneIDPayload?
     var desiredKeys: [String]?
     var resultsLimit: Int?
@@ -128,6 +137,7 @@ struct CKQueryOperationResultPayload: Codable {
     var records: [CKRecordPayload]
     var matches: [CKQueryMatchResultPayload]
     var cursorReturned: Bool
+    var cursor: CKQueryCursorPayload?
     var operationError: CKErrorPayload?
 }
 
@@ -135,24 +145,71 @@ func ckEncodeZoneID(_ zoneID: CKRecordZone.ID) -> CKRecordZoneIDPayload {
     CKRecordZoneIDPayload(zoneName: zoneID.zoneName, ownerName: zoneID.ownerName)
 }
 
-func ckDecodeZoneID(_ payload: CKRecordZoneIDPayload) -> CKRecordZone.ID {
-    CKRecordZone.ID(zoneName: payload.zoneName, ownerName: payload.ownerName)
+func ckDecodeZoneID(_ payload: CKRecordZoneIDPayload) throws -> CKRecordZone.ID {
+    var error: NSError?
+    let zoneID = CKXRecordZoneIDCreate(payload.zoneName, payload.ownerName, &error)
+    return try ckObjCResult(zoneID, error, "CKRecordZone.ID(zoneName:ownerName:)")
 }
 
 func ckEncodeRecordID(_ recordID: CKRecord.ID) -> CKRecordIDPayload {
     CKRecordIDPayload(recordName: recordID.recordName, zoneID: ckEncodeZoneID(recordID.zoneID))
 }
 
-func ckDecodeRecordID(_ payload: CKRecordIDPayload) -> CKRecord.ID {
-    CKRecord.ID(recordName: payload.recordName, zoneID: ckDecodeZoneID(payload.zoneID))
+func ckDecodeRecordID(_ payload: CKRecordIDPayload) throws -> CKRecord.ID {
+    let zoneID = try ckDecodeZoneID(payload.zoneID)
+    var error: NSError?
+    let recordID = CKXRecordIDCreate(payload.recordName, zoneID, &error)
+    return try ckObjCResult(recordID, error, "CKRecord.ID(recordName:zoneID:)")
 }
 
 func ckEncodeReference(_ reference: CKRecord.Reference) -> CKReferencePayload {
     CKReferencePayload(recordID: ckEncodeRecordID(reference.recordID), action: reference.action.rawValue)
 }
 
-func ckDecodeReference(_ payload: CKReferencePayload) -> CKRecord.Reference {
-    CKRecord.Reference(recordID: ckDecodeRecordID(payload.recordID), action: CKRecord.ReferenceAction(rawValue: payload.action) ?? .none)
+func ckDecodeReference(_ payload: CKReferencePayload) throws -> CKRecord.Reference {
+    let action: CKRecord.ReferenceAction
+    switch payload.action {
+    case CKRecord.ReferenceAction.none.rawValue:
+        action = .none
+    case CKRecord.ReferenceAction.deleteSelf.rawValue:
+        action = .deleteSelf
+    default:
+        throw ckInvalidArgument("Unsupported CKReferenceAction raw value \(payload.action)")
+    }
+    return CKRecord.Reference(recordID: try ckDecodeRecordID(payload.recordID), action: action)
+}
+
+func ckEncodeLocation(_ location: CLLocation) -> CKLocationPayload {
+    CKLocationPayload(
+        latitude: location.coordinate.latitude,
+        longitude: location.coordinate.longitude,
+        altitude: location.altitude,
+        horizontalAccuracy: location.horizontalAccuracy,
+        verticalAccuracy: location.verticalAccuracy,
+        course: location.course,
+        speed: location.speed,
+        timestamp: ckISO8601Formatter.string(from: location.timestamp)
+    )
+}
+
+func ckDecodeDate(_ value: String) throws -> Date {
+    guard let date = ckISO8601Formatter.date(from: value) else {
+        throw ckInvalidArgument("Invalid ISO-8601 date: \(value)")
+    }
+    return date
+}
+
+func ckDecodeLocation(_ payload: CKLocationPayload) throws -> CLLocation {
+    let timestamp = try payload.timestamp.map(ckDecodeDate) ?? Date()
+    return CLLocation(
+        coordinate: CLLocationCoordinate2D(latitude: payload.latitude, longitude: payload.longitude),
+        altitude: payload.altitude,
+        horizontalAccuracy: payload.horizontalAccuracy,
+        verticalAccuracy: payload.verticalAccuracy,
+        course: payload.course,
+        speed: payload.speed,
+        timestamp: timestamp
+    )
 }
 
 func ckArchiveSystemFields(_ record: CKRecord) throws -> [UInt8] {
@@ -162,188 +219,136 @@ func ckArchiveSystemFields(_ record: CKRecord) throws -> [UInt8] {
     return [UInt8](archiver.encodedData)
 }
 
-func ckEncodeRecordValue(_ value: Any) -> CKRecordValuePayload? {
+func ckEncodeRecordValue(_ value: Any, key: String) throws -> CKRecordValuePayload {
     if let string = value as? String {
-        return CKRecordValuePayload(
-            kind: .string,
-            stringValue: string,
-            intValue: nil,
-            doubleValue: nil,
-            boolValue: nil,
-            bytesValue: nil,
-            dateValue: nil,
-            assetValue: nil,
-            referenceValue: nil,
-            arrayValue: nil
-        )
+        var payload = CKRecordValuePayload(kind: .string)
+        payload.stringValue = string
+        return payload
     }
     if let number = value as? NSNumber {
         if CFGetTypeID(number) == CFBooleanGetTypeID() {
-            return CKRecordValuePayload(
-                kind: .bool,
-                stringValue: nil,
-                intValue: nil,
-                doubleValue: nil,
-                boolValue: number.boolValue,
-                bytesValue: nil,
-                dateValue: nil,
-                assetValue: nil,
-                referenceValue: nil,
-                arrayValue: nil
-            )
+            var payload = CKRecordValuePayload(kind: .bool)
+            payload.boolValue = number.boolValue
+            return payload
         }
         if CFNumberIsFloatType(number) {
-            return CKRecordValuePayload(
-                kind: .double,
-                stringValue: nil,
-                intValue: nil,
-                doubleValue: number.doubleValue,
-                boolValue: nil,
-                bytesValue: nil,
-                dateValue: nil,
-                assetValue: nil,
-                referenceValue: nil,
-                arrayValue: nil
-            )
+            var payload = CKRecordValuePayload(kind: .double)
+            payload.doubleValue = number.doubleValue
+            return payload
         }
-        return CKRecordValuePayload(
-            kind: .int,
-            stringValue: nil,
-            intValue: number.int64Value,
-            doubleValue: nil,
-            boolValue: nil,
-            bytesValue: nil,
-            dateValue: nil,
-            assetValue: nil,
-            referenceValue: nil,
-            arrayValue: nil
-        )
+        var payload = CKRecordValuePayload(kind: .int)
+        payload.intValue = number.int64Value
+        return payload
     }
     if let data = value as? Data {
-        return CKRecordValuePayload(
-            kind: .bytes,
-            stringValue: nil,
-            intValue: nil,
-            doubleValue: nil,
-            boolValue: nil,
-            bytesValue: [UInt8](data),
-            dateValue: nil,
-            assetValue: nil,
-            referenceValue: nil,
-            arrayValue: nil
-        )
+        var payload = CKRecordValuePayload(kind: .bytes)
+        payload.bytesValue = [UInt8](data)
+        return payload
     }
     if let date = value as? Date {
-        return CKRecordValuePayload(
-            kind: .date,
-            stringValue: nil,
-            intValue: nil,
-            doubleValue: nil,
-            boolValue: nil,
-            bytesValue: nil,
-            dateValue: ckISO8601Formatter.string(from: date),
-            assetValue: nil,
-            referenceValue: nil,
-            arrayValue: nil
-        )
+        var payload = CKRecordValuePayload(kind: .date)
+        payload.dateValue = ckISO8601Formatter.string(from: date)
+        return payload
     }
     if let asset = value as? CKAsset {
-        return CKRecordValuePayload(
-            kind: .asset,
-            stringValue: nil,
-            intValue: nil,
-            doubleValue: nil,
-            boolValue: nil,
-            bytesValue: nil,
-            dateValue: nil,
-            assetValue: ckEncodeAsset(asset),
-            referenceValue: nil,
-            arrayValue: nil
-        )
+        var payload = CKRecordValuePayload(kind: .asset)
+        payload.assetValue = ckEncodeAsset(asset)
+        return payload
     }
     if let reference = value as? CKRecord.Reference {
-        return CKRecordValuePayload(
-            kind: .reference,
-            stringValue: nil,
-            intValue: nil,
-            doubleValue: nil,
-            boolValue: nil,
-            bytesValue: nil,
-            dateValue: nil,
-            assetValue: nil,
-            referenceValue: ckEncodeReference(reference),
-            arrayValue: nil
-        )
+        var payload = CKRecordValuePayload(kind: .reference)
+        payload.referenceValue = ckEncodeReference(reference)
+        return payload
+    }
+    if let location = value as? CLLocation {
+        var payload = CKRecordValuePayload(kind: .location)
+        payload.locationValue = ckEncodeLocation(location)
+        return payload
     }
     if let array = value as? [Any] {
-        var payloads: [CKRecordValuePayload] = []
-        payloads.reserveCapacity(array.count)
-        for item in array {
-            guard let payload = ckEncodeRecordValue(item) else { return nil }
-            payloads.append(payload)
+        var payload = CKRecordValuePayload(kind: .array)
+        payload.arrayValue = try array.enumerated().map { index, item in
+            try ckEncodeRecordValue(item, key: "\(key)[\(index)]")
         }
-        return CKRecordValuePayload(
-            kind: .array,
-            stringValue: nil,
-            intValue: nil,
-            doubleValue: nil,
-            boolValue: nil,
-            bytesValue: nil,
-            dateValue: nil,
-            assetValue: nil,
-            referenceValue: nil,
-            arrayValue: payloads
-        )
+        return payload
     }
-    return nil
+    throw ckBridgeNSError(
+        code: CKR_FAILURE,
+        message: "CKRecord field \(key) holds a \(String(describing: type(of: value))) value, which the bridge cannot represent"
+    )
 }
 
-func ckDecodeRecordValue(_ payload: CKRecordValuePayload) throws -> (any CKRecordValue)? {
+private func ckRequired<T>(_ value: T?, _ kind: CKRecordValueKind, _ key: String) throws -> T {
+    guard let value else {
+        throw ckInvalidArgument("CKRecord value for \(key) has kind \(kind.rawValue) but no \(kind.rawValue) payload")
+    }
+    return value
+}
+
+func ckDecodeRecordValue(_ payload: CKRecordValuePayload, key: String) throws -> any CKRecordValue {
     switch payload.kind {
     case .string:
-        return payload.stringValue.map(NSString.init(string:))
+        return try ckRequired(payload.stringValue, payload.kind, key) as NSString
     case .int:
-        return payload.intValue.map(NSNumber.init(value:))
+        return NSNumber(value: try ckRequired(payload.intValue, payload.kind, key))
     case .double:
-        return payload.doubleValue.map(NSNumber.init(value:))
+        return NSNumber(value: try ckRequired(payload.doubleValue, payload.kind, key))
     case .bool:
-        return payload.boolValue.map(NSNumber.init(value:))
+        return NSNumber(value: try ckRequired(payload.boolValue, payload.kind, key))
     case .bytes:
-        return payload.bytesValue.map { NSData(data: Data($0)) }
+        return NSData(data: Data(try ckRequired(payload.bytesValue, payload.kind, key)))
     case .date:
-        guard let dateValue = payload.dateValue else { return nil }
-        guard let date = ckISO8601Formatter.date(from: dateValue) else {
-            throw ckBridgeNSError(code: CKR_INVALID_ARGUMENT, message: "Invalid ISO-8601 date: \(dateValue)")
-        }
-        return date as NSDate
+        return try ckDecodeDate(try ckRequired(payload.dateValue, payload.kind, key)) as NSDate
     case .asset:
-        guard let asset = payload.assetValue else { return nil }
-        return ckDecodeAsset(asset)
+        return try ckDecodeAsset(try ckRequired(payload.assetValue, payload.kind, key), key: key)
     case .reference:
-        guard let referenceValue = payload.referenceValue else { return nil }
-        return ckDecodeReference(referenceValue)
+        return try ckDecodeReference(try ckRequired(payload.referenceValue, payload.kind, key))
+    case .location:
+        return try ckDecodeLocation(try ckRequired(payload.locationValue, payload.kind, key))
     case .array:
-        let values = try payload.arrayValue?.map { try ckDecodeRecordValue($0) } ?? []
-        return values.compactMap { $0 } as NSArray
+        let items = try ckRequired(payload.arrayValue, payload.kind, key)
+        return try items.enumerated().map { index, item in
+            try ckDecodeRecordValue(item, key: "\(key)[\(index)]")
+        } as NSArray
+    }
+}
+
+func ckSetRecordObject(_ record: CKRecord, _ value: (any CKRecordValue)?, forKey key: String) throws {
+    var error: NSError?
+    guard CKXRecordSetObject(record, value, key, &error) else {
+        throw error ?? ckInvalidArgument("CKRecord.setObject(_:forKey:) rejected key \(key)")
     }
 }
 
 func ckApplyRecordPayload(_ payload: CKRecordPayload, to record: CKRecord) throws {
-    let desiredKeys = Set(payload.fields.keys)
-    for key in record.allKeys() where !desiredKeys.contains(key) {
-        record.setObject(nil, forKey: key)
+    for key in payload.fields.keys.sorted() {
+        guard let valuePayload = payload.fields[key] else { continue }
+        try ckSetRecordObject(record, try ckDecodeRecordValue(valuePayload, key: key), forKey: key)
     }
-    for (key, valuePayload) in payload.fields {
-        record.setObject(try ckDecodeRecordValue(valuePayload), forKey: key)
+    for key in payload.changedKeys where payload.fields[key] == nil {
+        try ckSetRecordObject(record, nil, forKey: key)
     }
-    record.parent = payload.parent.map(ckDecodeReference)
+
+    let parent = try payload.parent.map { reference -> CKRecord.Reference in
+        guard reference.action == CKRecord.ReferenceAction.none.rawValue else {
+            throw ckInvalidArgument("CKRecord.parent must use CKReferenceAction.none; CloudKit raises an exception for any other action")
+        }
+        return try ckDecodeReference(reference)
+    }
+    if record.parent?.recordID != parent?.recordID {
+        var error: NSError?
+        guard CKXRecordSetParent(record, parent, &error) else {
+            throw error ?? ckInvalidArgument("CKRecord.parent rejected the reference")
+        }
+    }
 }
 
 func ckDecodeRecord(_ payload: CKRecordPayload) throws -> CKRecord {
-    let recordID = ckDecodeRecordID(payload.recordID)
     let record: CKRecord
     if payload.encodedSystemFields.isEmpty {
-        record = CKRecord(recordType: payload.recordType, recordID: recordID)
+        var error: NSError?
+        let created = CKXRecordCreate(payload.recordType, try ckDecodeRecordID(payload.recordID), &error)
+        record = try ckObjCResult(created, error, "CKRecord(recordType:recordID:)")
     } else {
         let data = Data(payload.encodedSystemFields)
         let unarchiver = try NSKeyedUnarchiver(forReadingFrom: data)
@@ -366,9 +371,8 @@ func ckDecodeRecord(_ payload: CKRecordPayload) throws -> CKRecord {
 func ckEncodeRecord(_ record: CKRecord) throws -> CKRecordPayload {
     var fields: [String: CKRecordValuePayload] = [:]
     for key in record.allKeys() {
-        if let value = record.object(forKey: key), let payload = ckEncodeRecordValue(value) {
-            fields[key] = payload
-        }
+        guard let value = record.object(forKey: key) else { continue }
+        fields[key] = try ckEncodeRecordValue(value, key: key)
     }
     return CKRecordPayload(
         recordType: record.recordType,
@@ -387,6 +391,14 @@ func ckEncodeRecord(_ record: CKRecord) throws -> CKRecordPayload {
     )
 }
 
+func ckEncodeRecordResult(_ record: CKRecord) -> (CKRecordPayload?, CKErrorPayload?) {
+    do {
+        return (try ckEncodeRecord(record), nil)
+    } catch let error as NSError {
+        return (nil, ckErrorPayload(from: error))
+    }
+}
+
 func ckEncodeZone(_ zone: CKRecordZone) -> CKRecordZonePayload {
     let encryptionScope: Int?
     if #available(macOS 26.0, *) {
@@ -402,19 +414,11 @@ func ckEncodeZone(_ zone: CKRecordZone) -> CKRecordZonePayload {
     )
 }
 
-func ckDecodeZone(_ payload: CKRecordZonePayload) -> CKRecordZone {
-    let zone = CKRecordZone(zoneID: ckDecodeZoneID(payload.zoneID))
+func ckDecodeZone(_ payload: CKRecordZonePayload) throws -> CKRecordZone {
+    let zone = CKRecordZone(zoneID: try ckDecodeZoneID(payload.zoneID))
     if #available(macOS 26.0, *), let encryptionScope = payload.encryptionScope,
        let scope = CKRecordZone.EncryptionScope(rawValue: encryptionScope) {
         zone.encryptionScope = scope
     }
     return zone
-}
-
-func ckDecodeQuery(_ payload: CKQueryPayload) -> CKQuery {
-    let query = CKQuery(recordType: payload.recordType, predicate: NSPredicate(format: payload.predicateFormat))
-    if !payload.sortDescriptors.isEmpty {
-        query.sortDescriptors = payload.sortDescriptors.map { NSSortDescriptor(key: $0.key, ascending: $0.ascending) }
-    }
-    return query
 }

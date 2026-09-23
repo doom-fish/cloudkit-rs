@@ -11,8 +11,15 @@ extern "C" {
         out_error_json: *mut *mut c_char,
     ) -> i32;
 
+    pub fn ck_query_predicate_format(
+        query_json: *const c_char,
+        out_json: *mut *mut c_char,
+        out_error_json: *mut *mut c_char,
+    ) -> i32;
+
     pub fn ck_container_account_status_sync(
         container_identifier: *const c_char,
+        timeout_seconds: f64,
         out_status: *mut i32,
         out_error_json: *mut *mut c_char,
     ) -> i32;
@@ -24,6 +31,7 @@ extern "C" {
 
     pub fn ck_container_fetch_user_record_id_sync(
         container_identifier: *const c_char,
+        timeout_seconds: f64,
         out_json: *mut *mut c_char,
         out_error_json: *mut *mut c_char,
     ) -> i32;
@@ -48,12 +56,14 @@ extern "C" {
     pub fn ck_container_discover_user_identity_sync(
         container_identifier: *const c_char,
         lookup_info_json: *const c_char,
+        timeout_seconds: f64,
         out_json: *mut *mut c_char,
         out_error_json: *mut *mut c_char,
     ) -> i32;
     pub fn ck_container_fetch_share_participant_sync(
         container_identifier: *const c_char,
         lookup_info_json: *const c_char,
+        timeout_seconds: f64,
         out_json: *mut *mut c_char,
         out_error_json: *mut *mut c_char,
     ) -> i32;
@@ -62,6 +72,7 @@ extern "C" {
         container_identifier: *const c_char,
         database_scope: i32,
         record_json: *const c_char,
+        timeout_seconds: f64,
         out_json: *mut *mut c_char,
         out_error_json: *mut *mut c_char,
     ) -> i32;
@@ -69,6 +80,7 @@ extern "C" {
         container_identifier: *const c_char,
         database_scope: i32,
         record_id_json: *const c_char,
+        timeout_seconds: f64,
         out_json: *mut *mut c_char,
         out_error_json: *mut *mut c_char,
     ) -> i32;
@@ -83,6 +95,7 @@ extern "C" {
         container_identifier: *const c_char,
         database_scope: i32,
         record_id_json: *const c_char,
+        timeout_seconds: f64,
         out_json: *mut *mut c_char,
         out_error_json: *mut *mut c_char,
     ) -> i32;
@@ -98,6 +111,7 @@ extern "C" {
         database_scope: i32,
         query_json: *const c_char,
         zone_id_json: *const c_char,
+        timeout_seconds: f64,
         out_json: *mut *mut c_char,
         out_error_json: *mut *mut c_char,
     ) -> i32;
@@ -113,9 +127,11 @@ extern "C" {
         container_identifier: *const c_char,
         database_scope: i32,
         query_json: *const c_char,
+        cursor_json: *const c_char,
         zone_id_json: *const c_char,
         desired_keys_json: *const c_char,
         results_limit: i32,
+        timeout_seconds: f64,
         out_json: *mut *mut c_char,
         out_error_json: *mut *mut c_char,
     ) -> i32;
@@ -123,6 +139,7 @@ extern "C" {
         container_identifier: *const c_char,
         database_scope: i32,
         query_json: *const c_char,
+        cursor_json: *const c_char,
         zone_id_json: *const c_char,
         desired_keys_json: *const c_char,
         results_limit: i32,
@@ -133,6 +150,7 @@ extern "C" {
     pub fn ck_database_fetch_all_record_zones_sync(
         container_identifier: *const c_char,
         database_scope: i32,
+        timeout_seconds: f64,
         out_json: *mut *mut c_char,
         out_error_json: *mut *mut c_char,
     ) -> i32;
@@ -146,6 +164,7 @@ extern "C" {
         container_identifier: *const c_char,
         database_scope: i32,
         zone_id_json: *const c_char,
+        timeout_seconds: f64,
         out_json: *mut *mut c_char,
         out_error_json: *mut *mut c_char,
     ) -> i32;
@@ -153,6 +172,7 @@ extern "C" {
         container_identifier: *const c_char,
         database_scope: i32,
         zone_json: *const c_char,
+        timeout_seconds: f64,
         out_json: *mut *mut c_char,
         out_error_json: *mut *mut c_char,
     ) -> i32;
@@ -160,6 +180,7 @@ extern "C" {
         container_identifier: *const c_char,
         database_scope: i32,
         zone_id_json: *const c_char,
+        timeout_seconds: f64,
         out_json: *mut *mut c_char,
         out_error_json: *mut *mut c_char,
     ) -> i32;
@@ -168,12 +189,14 @@ extern "C" {
         container_identifier: *const c_char,
         database_scope: i32,
         subscription_id: *const c_char,
+        timeout_seconds: f64,
         out_json: *mut *mut c_char,
         out_error_json: *mut *mut c_char,
     ) -> i32;
     pub fn ck_database_fetch_all_subscriptions_sync(
         container_identifier: *const c_char,
         database_scope: i32,
+        timeout_seconds: f64,
         out_json: *mut *mut c_char,
         out_error_json: *mut *mut c_char,
     ) -> i32;
@@ -181,6 +204,7 @@ extern "C" {
         container_identifier: *const c_char,
         database_scope: i32,
         subscription_json: *const c_char,
+        timeout_seconds: f64,
         out_json: *mut *mut c_char,
         out_error_json: *mut *mut c_char,
     ) -> i32;
@@ -188,6 +212,7 @@ extern "C" {
         container_identifier: *const c_char,
         database_scope: i32,
         subscription_id: *const c_char,
+        timeout_seconds: f64,
         out_json: *mut *mut c_char,
         out_error_json: *mut *mut c_char,
     ) -> i32;
@@ -196,6 +221,7 @@ extern "C" {
         container_identifier: *const c_char,
         database_scope: i32,
         operation_json: *const c_char,
+        timeout_seconds: f64,
         out_json: *mut *mut c_char,
         out_error_json: *mut *mut c_char,
     ) -> i32;
@@ -210,6 +236,7 @@ extern "C" {
         container_identifier: *const c_char,
         database_scope: i32,
         operation_json: *const c_char,
+        timeout_seconds: f64,
         out_json: *mut *mut c_char,
         out_error_json: *mut *mut c_char,
     ) -> i32;
@@ -217,6 +244,7 @@ extern "C" {
         container_identifier: *const c_char,
         database_scope: i32,
         operation_json: *const c_char,
+        timeout_seconds: f64,
         out_json: *mut *mut c_char,
         out_error_json: *mut *mut c_char,
     ) -> i32;
@@ -224,6 +252,7 @@ extern "C" {
         container_identifier: *const c_char,
         database_scope: i32,
         operation_json: *const c_char,
+        timeout_seconds: f64,
         out_json: *mut *mut c_char,
         out_error_json: *mut *mut c_char,
     ) -> i32;
@@ -238,6 +267,7 @@ extern "C" {
         container_identifier: *const c_char,
         database_scope: i32,
         operation_json: *const c_char,
+        timeout_seconds: f64,
         out_json: *mut *mut c_char,
         out_error_json: *mut *mut c_char,
     ) -> i32;
@@ -267,24 +297,28 @@ extern "C" {
         share_url: *const c_char,
         should_fetch_root_record: bool,
         root_record_desired_keys_json: *const c_char,
+        timeout_seconds: f64,
         out_json: *mut *mut c_char,
         out_error_json: *mut *mut c_char,
     ) -> i32;
     pub fn ck_container_accept_share_metadata_sync(
         container_identifier: *const c_char,
         share_metadata_json: *const c_char,
+        timeout_seconds: f64,
         out_json: *mut *mut c_char,
         out_error_json: *mut *mut c_char,
     ) -> i32;
     pub fn ck_container_request_share_access_sync(
         container_identifier: *const c_char,
         share_url: *const c_char,
+        timeout_seconds: f64,
         out_error_json: *mut *mut c_char,
     ) -> i32;
     pub fn ck_database_execute_fetch_web_auth_token_sync(
         container_identifier: *const c_char,
         database_scope: i32,
         api_token: *const c_char,
+        timeout_seconds: f64,
         out_json: *mut *mut c_char,
         out_error_json: *mut *mut c_char,
     ) -> i32;

@@ -19,6 +19,7 @@ pub enum CloudKitErrorCode {
     BridgeTimedOut,
     /// Mirrors `CKError.Code.bridgeDefaultContainerUnavailable`.
     BridgeDefaultContainerUnavailable,
+    BridgeContainerNotEntitled,
     /// Mirrors `CKError.Code.internalError`.
     InternalError,
     /// Mirrors `CKError.Code.partialFailure`.
@@ -107,6 +108,7 @@ impl CloudKitError {
                 -2 => CloudKitErrorCode::BridgeFailure,
                 -3 => CloudKitErrorCode::BridgeTimedOut,
                 -4 => CloudKitErrorCode::BridgeDefaultContainerUnavailable,
+                -5 => CloudKitErrorCode::BridgeContainerNotEntitled,
                 other => CloudKitErrorCode::Unknown(other),
             };
         }
@@ -143,6 +145,7 @@ impl CloudKitError {
         matches!(
             self.kind(),
             CloudKitErrorCode::BridgeDefaultContainerUnavailable
+                | CloudKitErrorCode::BridgeContainerNotEntitled
                 | CloudKitErrorCode::BadContainer
                 | CloudKitErrorCode::MissingEntitlement
                 | CloudKitErrorCode::NotAuthenticated
@@ -194,6 +197,7 @@ mod tests {
             (-2, CloudKitErrorCode::BridgeFailure),
             (-3, CloudKitErrorCode::BridgeTimedOut),
             (-4, CloudKitErrorCode::BridgeDefaultContainerUnavailable),
+            (-5, CloudKitErrorCode::BridgeContainerNotEntitled),
         ];
 
         for (code, expected) in cases {

@@ -65,7 +65,7 @@ func ckDecodeLookupInfo(_ payload: CKUserIdentityLookupInfoPayload) throws -> CK
         return CKUserIdentity.LookupInfo(phoneNumber: phoneNumber)
     }
     if let userRecordID = payload.userRecordID {
-        return CKUserIdentity.LookupInfo(userRecordID: ckDecodeRecordID(userRecordID))
+        return CKUserIdentity.LookupInfo(userRecordID: try ckDecodeRecordID(userRecordID))
     }
     throw ckBridgeNSError(code: CKR_INVALID_ARGUMENT, message: "User identity lookup info requires an email address, phone number, or user record ID")
 }

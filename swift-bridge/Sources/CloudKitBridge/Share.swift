@@ -45,7 +45,7 @@ func ckEncodeShare(_ share: CKShare, rootRecord: CKRecordPayload?, isZoneWide: B
         shareRecord: try ckEncodeRecord(share),
         rootRecord: rootRecord,
         zoneID: ckEncodeZoneID(share.recordID.zoneID),
-        publicPermission: Int32(share.publicPermission.rawValue),
+        publicPermission: Int32(clamping: share.publicPermission.rawValue),
         url: share.url?.absoluteString,
         participants: share.participants.map(ckEncodeShareParticipant),
         owner: ckEncodeShareParticipant(share.owner),
@@ -75,6 +75,19 @@ func ckSyncShareParticipants(from payload: CKSharePayload, into share: CKShare) 
     }
 }
 
+func ckSharePublicPermission(_ rawValue: Int32) throws -> CKShare.ParticipantPermission {
+    switch Int(rawValue) {
+    case CKShare.ParticipantPermission.none.rawValue:
+        return .none
+    case CKShare.ParticipantPermission.readOnly.rawValue:
+        return .readOnly
+    case CKShare.ParticipantPermission.readWrite.rawValue:
+        return .readWrite
+    default:
+        throw ckInvalidArgument("CKShare publicPermission must be none, readOnly or readWrite, not raw value \(rawValue)")
+    }
+}
+
 func ckDecodeShare(_ payload: CKSharePayload) throws -> CKShare {
     let share: CKShare
     if !payload.shareRecord.encodedSystemFields.isEmpty {
@@ -84,14 +97,16 @@ func ckDecodeShare(_ payload: CKSharePayload) throws -> CKShare {
         share = CKShare(coder: unarchiver)
         unarchiver.finishDecoding()
     } else if payload.isZoneWide {
-        share = CKShare(recordZoneID: ckDecodeZoneID(payload.zoneID))
+        share = CKShare(recordZoneID: try ckDecodeZoneID(payload.zoneID))
     } else if let rootRecord = payload.rootRecord {
         share = CKShare(rootRecord: try ckDecodeRecord(rootRecord))
     } else {
         throw ckBridgeNSError(code: CKR_INVALID_ARGUMENT, message: "Share payload missing root record for non-zone-wide share")
     }
 
-    share.publicPermission = CKShare.ParticipantPermission(rawValue: Int(payload.publicPermission)) ?? .none
+    if share.publicPermission.rawValue != Int(payload.publicPermission) {
+        share.publicPermission = try ckSharePublicPermission(payload.publicPermission)
+    }
     try ckApplyRecordPayload(payload.shareRecord, to: share)
     if let title = payload.title {
         share[CKShare.SystemFieldKey.title] = title as NSString
@@ -102,7 +117,8 @@ func ckDecodeShare(_ payload: CKSharePayload) throws -> CKShare {
     if let shareType = payload.shareType {
         share[CKShare.SystemFieldKey.shareType] = shareType as NSString
     }
-    if #available(macOS 26.0, *), let allowsAccessRequests = payload.allowsAccessRequests {
+    if #available(macOS 26.0, *), let allowsAccessRequests = payload.allowsAccessRequests,
+       share.allowsAccessRequests != allowsAccessRequests {
         share.allowsAccessRequests = allowsAccessRequests
     }
     try ckSyncShareParticipants(from: payload, into: share)
@@ -110,12 +126,13 @@ func ckDecodeShare(_ payload: CKSharePayload) throws -> CKShare {
 }
 
 func ckEncodeShareMetadata(_ metadata: CKShare.Metadata) throws -> CKShareMetadataPayload {
-    CKShareMetadataPayload(
+    let rootRecord = try metadata.rootRecord.map(ckEncodeRecord)
+    return CKShareMetadataPayload(
         archivedData: try ckArchiveSecureCoding(metadata),
         containerIdentifier: metadata.containerIdentifier,
         share: try ckEncodeShare(
             metadata.share,
-            rootRecord: metadata.rootRecord.flatMap { try? ckEncodeRecord($0) },
+            rootRecord: rootRecord,
             isZoneWide: metadata.share.recordID.recordName == CKRecordNameZoneWideShare
         ),
         hierarchicalRootRecordID: metadata.hierarchicalRootRecordID.map(ckEncodeRecordID),
@@ -128,7 +145,7 @@ func ckEncodeShareMetadata(_ metadata: CKShare.Metadata) throws -> CKShareMetada
         participantStatus: metadata.participantStatus.rawValue,
         participantPermission: metadata.participantPermission.rawValue,
         ownerIdentity: ckEncodeUserIdentity(metadata.ownerIdentity),
-        rootRecord: metadata.rootRecord.flatMap { try? ckEncodeRecord($0) },
+        rootRecord: rootRecord,
         participantType: metadata.participantType.rawValue,
         rootRecordID: ckEncodeRecordID(metadata.rootRecordID)
     )
@@ -151,7 +168,7 @@ public func ckShareCreateRootRecord(
         return CKR_OK
     } catch let error as NSError {
         ckWriteError(error, to: outErrorJSON)
-        return Int32(error.code)
+        return ckFailureStatus(error)
     }
 }
 
@@ -163,12 +180,12 @@ public func ckShareCreateZoneWide(
 ) -> Int32 {
     do {
         let zoneIDPayload = try ckDecodeJSON(zoneIDJSON, as: CKRecordZoneIDPayload.self)
-        let share = CKShare(recordZoneID: ckDecodeZoneID(zoneIDPayload))
+        let share = CKShare(recordZoneID: try ckDecodeZoneID(zoneIDPayload))
         outJSON?.pointee = ckCString(try ckEncodeJSON(try ckEncodeShare(share, rootRecord: nil, isZoneWide: true)))
         return CKR_OK
     } catch let error as NSError {
         ckWriteError(error, to: outErrorJSON)
-        return Int32(error.code)
+        return ckFailureStatus(error)
     }
 }
 
@@ -185,7 +202,7 @@ public func ckShareNormalize(
         return CKR_OK
     } catch let error as NSError {
         ckWriteError(error, to: outErrorJSON)
-        return Int32(error.code)
+        return ckFailureStatus(error)
     }
 }
 
@@ -202,7 +219,7 @@ public func ckShareCreateOneTimeURLParticipant(
         throw ckBridgeNSError(code: CKR_FAILURE, message: "One-time URL participants require macOS 15.0 or newer")
     } catch let error as NSError {
         ckWriteError(error, to: outErrorJSON)
-        return Int32(error.code)
+        return ckFailureStatus(error)
     }
 }
 
@@ -212,6 +229,7 @@ public func ckContainerFetchShareMetadataSync(
     _ shareURL: UnsafePointer<CChar>?,
     _ shouldFetchRootRecord: Bool,
     _ rootRecordDesiredKeysJSON: UnsafePointer<CChar>?,
+    _ timeoutSeconds: Double,
     _ outJSON: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?,
     _ outErrorJSON: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?
 ) -> Int32 {
@@ -225,47 +243,26 @@ public func ckContainerFetchShareMetadataSync(
             throw ckBridgeNSError(code: CKR_INVALID_ARGUMENT, message: "Invalid share URL")
         }
 
-        let holder = CKResultHolder<CKShareMetadataPayload>()
-        let semaphore = DispatchSemaphore(value: 0)
+        let results = CKItemResults<URL, CKShare.Metadata>()
         let operation = CKFetchShareMetadataOperation(shareURLs: [url])
         operation.shouldFetchRootRecord = shouldFetchRootRecord
         operation.rootRecordDesiredKeys = desiredKeys
-        operation.perShareMetadataResultBlock = { _, shareMetadataResult in
-            switch shareMetadataResult {
-            case .success(let shareMetadata):
-                do {
-                    holder.value = try ckEncodeShareMetadata(shareMetadata)
-                } catch let error as NSError {
-                    holder.error = error
-                } catch {
-                    holder.error = ckBridgeNSError(code: CKR_FAILURE, message: error.localizedDescription)
-                }
-            case .failure(let error):
-                holder.error = error as NSError
-            }
+        operation.perShareMetadataResultBlock = { shareURL, shareMetadataResult in
+            results.append(shareURL, shareMetadataResult)
         }
         operation.fetchShareMetadataResultBlock = { operationResult in
-            if case .failure(let error) = operationResult, holder.error == nil {
-                holder.error = error as NSError
-            }
-            semaphore.signal()
+            results.finish(operationResult)
         }
 
         container.add(operation)
-        if semaphore.wait(timeout: .now() + 30) == .timedOut {
-            throw ckTimeoutNSError("CloudKit CKFetchShareMetadataOperation")
-        }
-        if let error = holder.error {
-            throw error
-        }
-        guard let payload = holder.value else {
-            throw ckBridgeNSError(code: CKR_FAILURE, message: "Missing CKShareMetadata result")
-        }
-        outJSON?.pointee = ckCString(try ckEncodeJSON(payload))
+        let timedOut = ckWaitCancellingOnTimeout(operation, results.finished, timeoutSeconds: timeoutSeconds)
+        let outcome = CKOperationOutcome(results: results.results, operationError: results.operationError, timedOut: timedOut)
+        let shareMetadata = try outcome.single(label: "CKFetchShareMetadataOperation", timeoutSeconds: timeoutSeconds, writes: false)
+        outJSON?.pointee = ckCString(try ckEncodeJSON(try ckEncodeShareMetadata(shareMetadata)))
         return CKR_OK
     } catch let error as NSError {
         ckWriteError(error, to: outErrorJSON)
-        return Int32(error.code)
+        return ckFailureStatus(error)
     }
 }
 
@@ -273,6 +270,7 @@ public func ckContainerFetchShareMetadataSync(
 public func ckContainerAcceptShareMetadataSync(
     _ containerIdentifier: UnsafePointer<CChar>?,
     _ shareMetadataJSON: UnsafePointer<CChar>?,
+    _ timeoutSeconds: Double,
     _ outJSON: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?,
     _ outErrorJSON: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?
 ) -> Int32 {
@@ -280,25 +278,21 @@ public func ckContainerAcceptShareMetadataSync(
         let container = try ckMakeContainer(containerIdentifier)
         let payload = try ckDecodeJSON(shareMetadataJSON, as: CKShareMetadataPayload.self)
         let shareMetadata = try ckDecodeShareMetadata(payload)
-        let acceptedShare: CKShare = try ckAwait(label: "CloudKit share acceptance") { (completion: @escaping (CKShare?, NSError?) -> Void) in
-            container.accept([shareMetadata]) { operationResult in
-                switch operationResult {
-                case .success(let resultsByMetadata):
-                    guard let perShareResult = resultsByMetadata[shareMetadata] ?? resultsByMetadata.values.first else {
-                        completion(nil, ckBridgeNSError(code: CKR_FAILURE, message: "Missing per-share acceptance result"))
-                        return
-                    }
-                    switch perShareResult {
-                    case .success(let share):
-                        completion(share, nil)
-                    case .failure(let error):
-                        completion(nil, error as NSError)
-                    }
-                case .failure(let error):
-                    completion(nil, error as NSError)
-                }
-            }
+
+        let results = CKItemResults<CKShare.Metadata, CKShare>()
+        let operation = CKAcceptSharesOperation(shareMetadatas: [shareMetadata])
+        operation.qualityOfService = .userInitiated
+        operation.perShareResultBlock = { metadata, shareResult in
+            results.append(metadata, shareResult)
         }
+        operation.acceptSharesResultBlock = { operationResult in
+            results.finish(operationResult)
+        }
+
+        container.add(operation)
+        let timedOut = ckWaitCancellingOnTimeout(operation, results.finished, timeoutSeconds: timeoutSeconds)
+        let outcome = CKOperationOutcome(results: results.results, operationError: results.operationError, timedOut: timedOut)
+        let acceptedShare = try outcome.single(label: "CKAcceptSharesOperation", timeoutSeconds: timeoutSeconds, writes: true)
         let acceptedPayload = try ckEncodeShare(
             acceptedShare,
             rootRecord: payload.rootRecord,
@@ -308,7 +302,7 @@ public func ckContainerAcceptShareMetadataSync(
         return CKR_OK
     } catch let error as NSError {
         ckWriteError(error, to: outErrorJSON)
-        return Int32(error.code)
+        return ckFailureStatus(error)
     }
 }
 
@@ -316,6 +310,7 @@ public func ckContainerAcceptShareMetadataSync(
 public func ckContainerRequestShareAccessSync(
     _ containerIdentifier: UnsafePointer<CChar>?,
     _ shareURL: UnsafePointer<CChar>?,
+    _ timeoutSeconds: Double,
     _ outErrorJSON: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?
 ) -> Int32 {
     do {
@@ -329,31 +324,21 @@ public func ckContainerRequestShareAccessSync(
         guard let url = URL(string: String(cString: shareURL)) else {
             throw ckBridgeNSError(code: CKR_INVALID_ARGUMENT, message: "Invalid share URL")
         }
-        let semaphore = DispatchSemaphore(value: 0)
-        let holder = CKResultHolder<Bool>()
+        let results = CKItemResults<URL, Void>()
         let operation = CKShareRequestAccessOperation(shareURLs: [url])
-        operation.perShareAccessRequestResultBlock = { _, accessRequestResult in
-            if case .failure(let error) = accessRequestResult {
-                holder.error = error as NSError
-            }
+        operation.perShareAccessRequestResultBlock = { shareURL, accessRequestResult in
+            results.append(shareURL, accessRequestResult)
         }
         operation.shareAccessRequestResultBlock = { operationResult in
-            if case .failure(let error) = operationResult, holder.error == nil {
-                holder.error = error as NSError
-            }
-            holder.value = true
-            semaphore.signal()
+            results.finish(operationResult)
         }
         container.add(operation)
-        if semaphore.wait(timeout: .now() + 30) == .timedOut {
-            throw ckTimeoutNSError("CloudKit CKShareRequestAccessOperation")
-        }
-        if let error = holder.error {
-            throw error
-        }
+        let timedOut = ckWaitCancellingOnTimeout(operation, results.finished, timeoutSeconds: timeoutSeconds)
+        let outcome = CKOperationOutcome(results: results.results, operationError: results.operationError, timedOut: timedOut)
+        try outcome.single(label: "CKShareRequestAccessOperation", timeoutSeconds: timeoutSeconds, writes: true)
         return CKR_OK
     } catch let error as NSError {
         ckWriteError(error, to: outErrorJSON)
-        return Int32(error.code)
+        return ckFailureStatus(error)
     }
 }

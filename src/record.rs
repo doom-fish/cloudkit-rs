@@ -6,9 +6,9 @@ use std::path::{Path, PathBuf};
 use crate::error::CloudKitError;
 use crate::ffi;
 use crate::private::{
-    cstring_from_str, error_from_status, parse_json_ptr, CKAssetPayload, CKRecordIDPayload,
-    CKRecordPayload, CKRecordValuePayload, CKRecordZoneIDPayload, CKRecordZonePayload,
-    CKReferencePayload, RecordValueKind,
+    cstring_from_str, error_from_status, parse_json_ptr, CKAssetPayload, CKLocationPayload,
+    CKRecordIDPayload, CKRecordPayload, CKRecordValuePayload, CKRecordZoneIDPayload,
+    CKRecordZonePayload,
 };
 use crate::reference_utility::{CKReference, CKReferenceAction};
 
@@ -181,29 +181,91 @@ impl CKRecordID {
 /// Wraps `CKAsset`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CKAsset {
-    file_url: PathBuf,
+    file_url: Option<PathBuf>,
 }
 
 impl CKAsset {
     /// Creates a wrapper mirroring `CKAsset`.
     pub fn new(path: impl Into<PathBuf>) -> Self {
         Self {
-            file_url: path.into(),
+            file_url: Some(path.into()),
         }
     }
 
-    /// Mirrors `CKAsset.fileURL`.
-    pub fn file_url(&self) -> &Path {
-        &self.file_url
+    /// Mirrors `CKAsset.fileURL`, which is `None` when `CloudKit` returned no local copy.
+    ///
+    /// For a fetched asset the path points into `CloudKit`'s staging area, which the
+    /// system purges to reclaim disk space; copy the file into your own storage
+    /// before relying on it.
+    pub fn file_url(&self) -> Option<&Path> {
+        self.file_url.as_deref()
     }
 
     pub(crate) fn from_payload(payload: CKAssetPayload) -> Self {
-        Self::new(payload.file_url)
+        Self {
+            file_url: payload.file_url.map(PathBuf::from),
+        }
     }
 
     pub(crate) fn to_payload(&self) -> CKAssetPayload {
         CKAssetPayload {
-            file_url: self.file_url.to_string_lossy().into_owned(),
+            file_url: self
+                .file_url
+                .as_ref()
+                .map(|path| path.to_string_lossy().into_owned()),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct RecordLocation {
+    pub latitude: f64,
+    pub longitude: f64,
+    pub altitude: f64,
+    pub horizontal_accuracy: f64,
+    pub vertical_accuracy: f64,
+    pub course: f64,
+    pub speed: f64,
+    pub timestamp: Option<String>,
+}
+
+impl RecordLocation {
+    pub const fn new(latitude: f64, longitude: f64) -> Self {
+        Self {
+            latitude,
+            longitude,
+            altitude: 0.0,
+            horizontal_accuracy: 0.0,
+            vertical_accuracy: -1.0,
+            course: -1.0,
+            speed: -1.0,
+            timestamp: None,
+        }
+    }
+
+    pub(crate) fn from_payload(payload: CKLocationPayload) -> Self {
+        Self {
+            latitude: payload.latitude,
+            longitude: payload.longitude,
+            altitude: payload.altitude,
+            horizontal_accuracy: payload.horizontal_accuracy,
+            vertical_accuracy: payload.vertical_accuracy,
+            course: payload.course,
+            speed: payload.speed,
+            timestamp: payload.timestamp,
+        }
+    }
+
+    pub(crate) fn to_payload(&self) -> CKLocationPayload {
+        CKLocationPayload {
+            latitude: self.latitude,
+            longitude: self.longitude,
+            altitude: self.altitude,
+            horizontal_accuracy: self.horizontal_accuracy,
+            vertical_accuracy: self.vertical_accuracy,
+            course: self.course,
+            speed: self.speed,
+            timestamp: self.timestamp.clone(),
         }
     }
 }
@@ -228,6 +290,7 @@ pub enum RecordValue {
     Asset(CKAsset),
     /// Mirrors `CKRecord.reference`.
     Reference(CKReference),
+    Location(RecordLocation),
     /// Mirrors `CKRecord.array`.
     Array(Vec<RecordValue>),
 }
@@ -286,6 +349,12 @@ impl From<CKReference> for RecordValue {
     }
 }
 
+impl From<RecordLocation> for RecordValue {
+    fn from(value: RecordLocation) -> Self {
+        Self::Location(value)
+    }
+}
+
 impl From<Vec<RecordValue>> for RecordValue {
     fn from(value: Vec<RecordValue>) -> Self {
         Self::Array(value)
@@ -294,146 +363,51 @@ impl From<Vec<RecordValue>> for RecordValue {
 
 impl RecordValue {
     pub(crate) fn from_payload(payload: CKRecordValuePayload) -> Self {
-        match payload.kind {
-            RecordValueKind::String => Self::String(payload.string_value.unwrap_or_default()),
-            RecordValueKind::Int => Self::Int(payload.int_value.unwrap_or_default()),
-            RecordValueKind::Double => Self::Double(payload.double_value.unwrap_or_default()),
-            RecordValueKind::Bool => Self::Bool(payload.bool_value.unwrap_or_default()),
-            RecordValueKind::Bytes => Self::Bytes(payload.bytes_value.unwrap_or_default()),
-            RecordValueKind::Date => Self::Date(payload.date_value.unwrap_or_default()),
-            RecordValueKind::Asset => Self::Asset(CKAsset::from_payload(
-                payload.asset_value.unwrap_or(CKAssetPayload {
-                    file_url: String::new(),
-                }),
-            )),
-            RecordValueKind::Reference => Self::Reference(CKReference::from_payload(
-                payload
-                    .reference_value
-                    .unwrap_or_else(|| CKReferencePayload {
-                        record_id: CKRecordID::new(String::new()).to_payload(),
-                        action: CKReferenceAction::None.to_raw(),
-                    }),
-            )),
-            RecordValueKind::Array => Self::Array(
-                payload
-                    .array_value
-                    .unwrap_or_default()
-                    .into_iter()
-                    .map(Self::from_payload)
-                    .collect(),
-            ),
+        match payload {
+            CKRecordValuePayload::String { value } => Self::String(value),
+            CKRecordValuePayload::Int { value } => Self::Int(value),
+            CKRecordValuePayload::Double { value } => Self::Double(value),
+            CKRecordValuePayload::Bool { value } => Self::Bool(value),
+            CKRecordValuePayload::Bytes { value } => Self::Bytes(value),
+            CKRecordValuePayload::Date { value } => Self::Date(value),
+            CKRecordValuePayload::Asset { value } => Self::Asset(CKAsset::from_payload(value)),
+            CKRecordValuePayload::Reference { value } => {
+                Self::Reference(CKReference::from_payload(value))
+            }
+            CKRecordValuePayload::Location { value } => {
+                Self::Location(RecordLocation::from_payload(value))
+            }
+            CKRecordValuePayload::Array { value } => {
+                Self::Array(value.into_iter().map(Self::from_payload).collect())
+            }
         }
     }
 
     pub(crate) fn to_payload(&self) -> CKRecordValuePayload {
         match self {
-            Self::String(value) => CKRecordValuePayload {
-                kind: RecordValueKind::String,
-                string_value: Some(value.clone()),
-                int_value: None,
-                double_value: None,
-                bool_value: None,
-                bytes_value: None,
-                date_value: None,
-                asset_value: None,
-                reference_value: None,
-                array_value: None,
+            Self::String(value) => CKRecordValuePayload::String {
+                value: value.clone(),
             },
-            Self::Int(value) => CKRecordValuePayload {
-                kind: RecordValueKind::Int,
-                string_value: None,
-                int_value: Some(*value),
-                double_value: None,
-                bool_value: None,
-                bytes_value: None,
-                date_value: None,
-                asset_value: None,
-                reference_value: None,
-                array_value: None,
+            Self::Int(value) => CKRecordValuePayload::Int { value: *value },
+            Self::Double(value) => CKRecordValuePayload::Double { value: *value },
+            Self::Bool(value) => CKRecordValuePayload::Bool { value: *value },
+            Self::Bytes(value) => CKRecordValuePayload::Bytes {
+                value: value.clone(),
             },
-            Self::Double(value) => CKRecordValuePayload {
-                kind: RecordValueKind::Double,
-                string_value: None,
-                int_value: None,
-                double_value: Some(*value),
-                bool_value: None,
-                bytes_value: None,
-                date_value: None,
-                asset_value: None,
-                reference_value: None,
-                array_value: None,
+            Self::Date(value) => CKRecordValuePayload::Date {
+                value: value.clone(),
             },
-            Self::Bool(value) => CKRecordValuePayload {
-                kind: RecordValueKind::Bool,
-                string_value: None,
-                int_value: None,
-                double_value: None,
-                bool_value: Some(*value),
-                bytes_value: None,
-                date_value: None,
-                asset_value: None,
-                reference_value: None,
-                array_value: None,
+            Self::Asset(asset) => CKRecordValuePayload::Asset {
+                value: asset.to_payload(),
             },
-            Self::Bytes(value) => CKRecordValuePayload {
-                kind: RecordValueKind::Bytes,
-                string_value: None,
-                int_value: None,
-                double_value: None,
-                bool_value: None,
-                bytes_value: Some(value.clone()),
-                date_value: None,
-                asset_value: None,
-                reference_value: None,
-                array_value: None,
+            Self::Reference(reference) => CKRecordValuePayload::Reference {
+                value: reference.to_payload(),
             },
-            Self::Date(value) => CKRecordValuePayload {
-                kind: RecordValueKind::Date,
-                string_value: None,
-                int_value: None,
-                double_value: None,
-                bool_value: None,
-                bytes_value: None,
-                date_value: Some(value.clone()),
-                asset_value: None,
-                reference_value: None,
-                array_value: None,
+            Self::Location(location) => CKRecordValuePayload::Location {
+                value: location.to_payload(),
             },
-            Self::Asset(asset) => CKRecordValuePayload {
-                kind: RecordValueKind::Asset,
-                string_value: None,
-                int_value: None,
-                double_value: None,
-                bool_value: None,
-                bytes_value: None,
-                date_value: None,
-                asset_value: Some(asset.to_payload()),
-                reference_value: None,
-                array_value: None,
-            },
-            Self::Reference(reference) => CKRecordValuePayload {
-                kind: RecordValueKind::Reference,
-                string_value: None,
-                int_value: None,
-                double_value: None,
-                bool_value: None,
-                bytes_value: None,
-                date_value: None,
-                asset_value: None,
-                reference_value: Some(reference.to_payload()),
-                array_value: None,
-            },
-            Self::Array(values) => CKRecordValuePayload {
-                kind: RecordValueKind::Array,
-                string_value: None,
-                int_value: None,
-                double_value: None,
-                bool_value: None,
-                bytes_value: None,
-                date_value: None,
-                asset_value: None,
-                reference_value: None,
-                array_value: Some(values.iter().map(Self::to_payload).collect()),
+            Self::Array(values) => CKRecordValuePayload::Array {
+                value: values.iter().map(Self::to_payload).collect(),
             },
         }
     }
@@ -541,8 +515,9 @@ impl CKRecord {
         let record_type = cstring_from_str(record_type, "record type")?;
         let mut out_json: *mut c_char = core::ptr::null_mut();
         let mut out_error: *mut c_char = core::ptr::null_mut();
-        let status =
-            unsafe { ffi::ck_record_create(record_type.as_ptr(), &mut out_json, &mut out_error) };
+        let status = unsafe {
+            ffi::ck_record_create(record_type.as_ptr(), &raw mut out_json, &raw mut out_error)
+        };
         if status != ffi::status::OK {
             return Err(unsafe { error_from_status(status, out_error) });
         }
@@ -619,7 +594,6 @@ impl CKRecord {
         self.share.as_ref()
     }
 
-
     /// Mirrors `CKRecord.changedKeys`.
     pub fn changed_keys(&self) -> &[String] {
         &self.changed_keys
@@ -664,21 +638,28 @@ impl CKRecord {
     }
 
     /// Mirrors `CKRecord.setParentReference`.
-    pub fn set_parent_reference(&mut self, reference: CKReference) {
+    pub fn set_parent_reference(&mut self, reference: CKReference) -> Result<(), CloudKitError> {
+        if reference.action() != CKReferenceAction::None {
+            return Err(CloudKitError::bridge(
+                i64::from(ffi::status::INVALID_ARGUMENT),
+                format!(
+                    "CKRecord.parent must use CKReferenceAction::None, got {:?}; CloudKit raises an exception for any other action",
+                    reference.action()
+                ),
+            ));
+        }
         self.parent = Some(reference);
+        Ok(())
     }
 
     /// Mirrors `CKRecord.setParentReferenceFromRecord`.
     pub fn set_parent_reference_from_record(&mut self, parent_record: &CKRecord) {
-        self.set_parent_reference(CKReference::new(
-            parent_record.record_id().clone(),
-            CKReferenceAction::None,
-        ));
+        self.parent = Some(CKReference::parent(parent_record.record_id().clone()));
     }
 
     /// Mirrors `CKRecord.setParentReferenceFromRecordID`.
     pub fn set_parent_reference_from_record_id(&mut self, parent_record_id: CKRecordID) {
-        self.set_parent_reference(CKReference::new(parent_record_id, CKReferenceAction::None));
+        self.parent = Some(CKReference::parent(parent_record_id));
     }
 
     /// Mirrors `CKRecord.clearParentReference`.
@@ -872,7 +853,10 @@ mod tests {
             RecordValue::from(CKAsset::new("cover.heic")),
         ]);
 
-        assert_eq!(RecordValue::from_payload(record_value.to_payload()), record_value);
+        assert_eq!(
+            RecordValue::from_payload(record_value.to_payload()),
+            record_value
+        );
     }
 
     #[test]

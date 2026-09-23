@@ -5,7 +5,7 @@ extension CKRecord.Reference {
         ckEncodeReference(self)
     }
 
-    static func fromBridgePayload(_ payload: CKReferencePayload) -> CKRecord.Reference {
-        ckDecodeReference(payload)
+    static func fromBridgePayload(_ payload: CKReferencePayload) throws -> CKRecord.Reference {
+        try ckDecodeReference(payload)
     }
 }
