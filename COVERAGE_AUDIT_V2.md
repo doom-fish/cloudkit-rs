@@ -1,10 +1,13 @@
 # cloudkit-rs coverage audit v2 (vs MacOSX26.2.sdk)
 
 SDK_PUBLIC_SYMBOLS: 140
-VERIFIED: 134
+VERIFIED: 77
+MODELED: 57
 GAPS: 0
 EXEMPT: 6
-COVERAGE_PCT: 100.00
+COVERAGE_PCT: 57.46%
+
+This audit lists `CloudKit.framework` symbols from the MacOSX26.2.sdk header set; it was not regenerated against the installed 26.5 SDK. A symbol counts as VERIFIED only when the crate reaches the real framework object through the Swift bridge. MODELED symbols have a Rust type, but that type is a local model or simulation that never touches CloudKit. `COVERAGE_PCT` is VERIFIED divided by the 134 non-exempt symbols; it does not measure how much of each class's API is bridged.
 
 The audit was conducted by systematically enumerating all public symbols in the CloudKit.framework headers and cross-referencing with the crate's Rust wrapper (src/*.rs) and Swift bridge (swift-bridge/Sources/**/*.swift). The v1 audit was re-verified against MacOSX26.2.sdk headers; all EXEMPT promotions were confirmed valid (deprecated macOS symbols with API_DEPRECATED attributes). No new symbols were added in 26.2 SDK relative to the previous version.
 
@@ -52,13 +55,9 @@ The audit was conducted by systematically enumerating all public symbols in the 
 | `CKUserIdentity` | class | `CKUserIdentity.h` | `CKUserIdentity` (`src/user_identity.rs:160`) |
 | `CKUserIdentityLookupInfo` | class | `CKUserIdentityLookupInfo.h` | `CKUserIdentityLookupInfo` (`src/user_identity.rs:99`) |
 | `CKAcceptSharesOperation` | class | `CKAcceptSharesOperation.h` | `CKAcceptSharesOperation` (`src/operation_support.rs:1003`) |
-| `CKAllowedSharingOptions` | class | `CKAllowedSharingOptions.h` | `CKAllowedSharingOptions` (`src/share.rs:489`) |
-| `CKSharingParticipantAccessOption` | enum | `CKAllowedSharingOptions.h` | `CKSharingParticipantAccessOption` (`src/share.rs:427`) |
-| `CKSharingParticipantPermissionOption` | enum | `CKAllowedSharingOptions.h` | `CKSharingParticipantPermissionOption` (`src/share.rs:458`) |
 | `CKAccountChangedNotification` | constant | `CKContainer.h` | `CK_ACCOUNT_CHANGED_NOTIFICATION` (`src/constants.rs:1`) |
 | `CKApplicationPermissions` | enum | `CKContainer.h` | `CKApplicationPermissions` (`src/container.rs:54`) |
 | `CKCurrentUserDefaultName` | constant | `CKContainer.h` | `CK_CURRENT_USER_DEFAULT_NAME` (`src/constants.rs:2`) |
-| `CKDatabaseOperation` | class | `CKDatabaseOperation.h` | `CKDatabaseOperation` (`src/operation_support.rs:275`) |
 | `CKErrorRetryAfterKey` | constant | `CKError.h` | `CK_ERROR_RETRY_AFTER_KEY` (`src/constants.rs:4`) |
 | `CKErrorUserDidResetEncryptedDataKey` | constant | `CKError.h` | `CK_ERROR_USER_DID_RESET_ENCRYPTED_DATA_KEY` (`src/constants.rs:5`) |
 | `CKPartialErrorsByItemIDKey` | constant | `CKError.h` | `CK_PARTIAL_ERRORS_BY_ITEM_ID_KEY` (`src/constants.rs:6`) |
@@ -73,17 +72,6 @@ The audit was conducted by systematically enumerating all public symbols in the 
 | `CKLocationSortDescriptor` | class | `CKLocationSortDescriptor.h` | `CKLocationSortDescriptor` (`src/query.rs:34`) |
 | `CKModifyRecordZonesOperation` | class | `CKModifyRecordZonesOperation.h` | `CKModifyRecordZonesOperation` (`src/operation_support.rs:427`) |
 | `CKModifySubscriptionsOperation` | class | `CKModifySubscriptionsOperation.h` | `CKModifySubscriptionsOperation` (`src/operation_support.rs:623`) |
-| `CKDatabaseNotification` | class | `CKNotification.h` | `CKDatabaseNotification` (`src/notification.rs:259`) |
-| `CKNotification` | class | `CKNotification.h` | `CKNotification` (`src/notification.rs:83`) |
-| `CKNotificationID` | class | `CKNotification.h` | `CKNotificationID` (`src/notification.rs:7`) |
-| `CKNotificationType` | enum | `CKNotification.h` | `CKNotificationType` (`src/notification.rs:23`) |
-| `CKQueryNotification` | class | `CKNotification.h` | `CKQueryNotification` (`src/notification.rs:158`) |
-| `CKQueryNotificationReason` | enum | `CKNotification.h` | `CKQueryNotificationReason` (`src/notification.rs:55`) |
-| `CKRecordZoneNotification` | class | `CKNotification.h` | `CKRecordZoneNotification` (`src/notification.rs:220`) |
-| `CKOperation` | class | `CKOperation.h` | `CKOperation` (`src/operation_support.rs:220`) |
-| `CKOperationConfiguration` | class | `CKOperation.h` | `CKOperationConfiguration` (`src/operation_support.rs:35`) |
-| `CKOperationGroup` | class | `CKOperationGroup.h` | `CKOperationGroup` (`src/operation_support.rs:133`) |
-| `CKOperationGroupTransferSize` | enum | `CKOperationGroup.h` | `CKOperationGroupTransferSize` (`src/operation_support.rs:121`) |
 | `CKQueryOperationMaximumResults` | constant | `CKQueryOperation.h` | `CK_QUERY_OPERATION_MAXIMUM_RESULTS` (`src/constants.rs:11`) |
 | `CKRecordCreationDateKey` | constant | `CKRecord.h` | `CK_RECORD_CREATION_DATE_KEY` (`src/constants.rs:13`) |
 | `CKRecordCreatorUserRecordIDKey` | constant | `CKRecord.h` | `CK_RECORD_CREATOR_USER_RECORD_ID_KEY` (`src/constants.rs:14`) |
@@ -100,51 +88,70 @@ The audit was conducted by systematically enumerating all public symbols in the 
 | `CKShareThumbnailImageDataKey` | constant | `CKShare.h` | `CK_SHARE_THUMBNAIL_IMAGE_DATA_KEY` (`src/constants.rs:24`) |
 | `CKShareTitleKey` | constant | `CKShare.h` | `CK_SHARE_TITLE_KEY` (`src/constants.rs:25`) |
 | `CKShareTypeKey` | constant | `CKShare.h` | `CK_SHARE_TYPE_KEY` (`src/constants.rs:26`) |
-| `CKShareAccessRequester` | class | `CKShareAccessRequester.h` | `CKShareAccessRequester` (`src/share.rs:530`) |
-| `CKShareBlockedIdentity` | class | `CKShareBlockedIdentity.h` | `CKShareBlockedIdentity` (`src/share.rs:567`) |
 | `CKShareMetadata` | class | `CKShareMetadata.h` | `CKShareMetadata` (`src/share.rs:595`) |
 | `CKShareParticipantType` | enum | `CKShareParticipant.h` | `CKShareParticipantType` (`src/share.rs:394`) |
 | `CKShareRequestAccessOperation` | class | `CKShareRequestAccessOperation.h` | `CKShareRequestAccessOperation` (`src/operation_support.rs:1097`) |
-| `CKSyncEngine` | class | `CKSyncEngine.h` | `CKSyncEngine` (`src/sync_engine.rs:1291`) |
-| `CKSyncEngineDelegate` | protocol | `CKSyncEngine.h` | `CKSyncEngineDelegate` (`src/sync_engine.rs:318`) |
-| `CKSyncEngineFetchChangesContext` | class | `CKSyncEngine.h` | `CKSyncEngineFetchChangesContext` (`src/sync_engine.rs:279`) |
-| `CKSyncEngineFetchChangesOptions` | class | `CKSyncEngine.h` | `CKSyncEngineFetchChangesOptions` (`src/sync_engine.rs:119`) |
-| `CKSyncEngineFetchChangesScope` | class | `CKSyncEngine.h` | `CKSyncEngineFetchChangesScope` (`src/sync_engine.rs:61`) |
-| `CKSyncEngineSendChangesContext` | class | `CKSyncEngine.h` | `CKSyncEngineSendChangesContext` (`src/sync_engine.rs:299`) |
-| `CKSyncEngineSendChangesOptions` | class | `CKSyncEngine.h` | `CKSyncEngineSendChangesOptions` (`src/sync_engine.rs:251`) |
-| `CKSyncEngineSendChangesScope` | class | `CKSyncEngine.h` | `CKSyncEngineSendChangesScope` (`src/sync_engine.rs:159`) |
-| `CKSyncEngineSyncReason` | enum | `CKSyncEngine.h` | `CKSyncEngineSyncReason` (`src/sync_engine.rs:21`) |
-| `CKSyncEngineConfiguration` | class | `CKSyncEngineConfiguration.h` | `CKSyncEngineConfiguration` (`src/sync_engine.rs:339`) |
-| `CKSyncEngineAccountChangeEvent` | class | `CKSyncEngineEvent.h` | `CKSyncEngineAccountChangeEvent` (`src/sync_engine.rs:876`) |
-| `CKSyncEngineAccountChangeType` | enum | `CKSyncEngineEvent.h` | `CKSyncEngineAccountChangeType` (`src/sync_engine.rs:721`) |
-| `CKSyncEngineDidFetchChangesEvent` | class | `CKSyncEngineEvent.h` | `CKSyncEngineDidFetchChangesEvent` (`src/sync_engine.rs:1096`) |
-| `CKSyncEngineDidFetchRecordZoneChangesEvent` | class | `CKSyncEngineEvent.h` | `CKSyncEngineDidFetchRecordZoneChangesEvent` (`src/sync_engine.rs:1071`) |
-| `CKSyncEngineDidSendChangesEvent` | class | `CKSyncEngineEvent.h` | `CKSyncEngineDidSendChangesEvent` (`src/sync_engine.rs:1126`) |
-| `CKSyncEngineEvent` | class | `CKSyncEngineEvent.h` | `CKSyncEngineEvent` (`src/sync_engine.rs:1158`) |
-| `CKSyncEngineEventType` | enum | `CKSyncEngineEvent.h` | `CKSyncEngineEventType` (`src/sync_engine.rs:703`) |
-| `CKSyncEngineFailedRecordSave` | class | `CKSyncEngineEvent.h` | `CKSyncEngineFailedRecordSave` (`src/sync_engine.rs:781`) |
-| `CKSyncEngineFailedZoneSave` | class | `CKSyncEngineEvent.h` | `CKSyncEngineFailedZoneSave` (`src/sync_engine.rs:801`) |
-| `CKSyncEngineFetchedDatabaseChangesEvent` | class | `CKSyncEngineEvent.h` | `CKSyncEngineFetchedDatabaseChangesEvent` (`src/sync_engine.rs:915`) |
-| `CKSyncEngineFetchedRecordDeletion` | class | `CKSyncEngineEvent.h` | `CKSyncEngineFetchedRecordDeletion` (`src/sync_engine.rs:738`) |
-| `CKSyncEngineFetchedRecordZoneChangesEvent` | class | `CKSyncEngineEvent.h` | `CKSyncEngineFetchedRecordZoneChangesEvent` (`src/sync_engine.rs:938`) |
-| `CKSyncEngineFetchedZoneDeletion` | class | `CKSyncEngineEvent.h` | `CKSyncEngineFetchedZoneDeletion` (`src/sync_engine.rs:761`) |
-| `CKSyncEngineSentDatabaseChangesEvent` | class | `CKSyncEngineEvent.h` | `CKSyncEngineSentDatabaseChangesEvent` (`src/sync_engine.rs:961`) |
-| `CKSyncEngineSentRecordZoneChangesEvent` | class | `CKSyncEngineEvent.h` | `CKSyncEngineSentRecordZoneChangesEvent` (`src/sync_engine.rs:1001`) |
-| `CKSyncEngineStateUpdateEvent` | class | `CKSyncEngineEvent.h` | `CKSyncEngineStateUpdateEvent` (`src/sync_engine.rs:861`) |
-| `CKSyncEngineWillFetchChangesEvent` | class | `CKSyncEngineEvent.h` | `CKSyncEngineWillFetchChangesEvent` (`src/sync_engine.rs:1041`) |
-| `CKSyncEngineWillFetchRecordZoneChangesEvent` | class | `CKSyncEngineEvent.h` | `CKSyncEngineWillFetchRecordZoneChangesEvent` (`src/sync_engine.rs:1056`) |
-| `CKSyncEngineWillSendChangesEvent` | class | `CKSyncEngineEvent.h` | `CKSyncEngineWillSendChangesEvent` (`src/sync_engine.rs:1111`) |
-| `CKSyncEngineZoneDeletionReason` | enum | `CKSyncEngineEvent.h` | `CKSyncEngineZoneDeletionReason` (`src/sync_engine.rs:730`) |
-| `CKSyncEngineRecordZoneChangeBatch` | class | `CKSyncEngineRecordZoneChangeBatch.h` | `CKSyncEngineRecordZoneChangeBatch` (`src/sync_engine.rs:649`) |
-| `CKSyncEnginePendingDatabaseChange` | class | `CKSyncEngineState.h` | `CKSyncEnginePendingDatabaseChange` (`src/sync_engine.rs:491`) |
-| `CKSyncEnginePendingDatabaseChangeType` | enum | `CKSyncEngineState.h` | `CKSyncEnginePendingDatabaseChangeType` (`src/sync_engine.rs:466`) |
-| `CKSyncEnginePendingRecordZoneChange` | class | `CKSyncEngineState.h` | `CKSyncEnginePendingRecordZoneChange` (`src/sync_engine.rs:439`) |
-| `CKSyncEnginePendingRecordZoneChangeType` | enum | `CKSyncEngineState.h` | `CKSyncEnginePendingRecordZoneChangeType` (`src/sync_engine.rs:414`) |
-| `CKSyncEnginePendingZoneDelete` | class | `CKSyncEngineState.h` | `CKSyncEnginePendingZoneDelete` (`src/sync_engine.rs:544`) |
-| `CKSyncEnginePendingZoneSave` | class | `CKSyncEngineState.h` | `CKSyncEnginePendingZoneSave` (`src/sync_engine.rs:514`) |
-| `CKSyncEngineState` | class | `CKSyncEngineState.h` | `CKSyncEngineState` (`src/sync_engine.rs:573`) |
-| `CKSyncEngineStateSerialization` | class | `CKSyncEngineState.h` | `CKSyncEngineStateSerialization` (`src/sync_engine.rs:46`) |
-| `CKSystemSharingUIObserver` | class | `CKSystemSharingUIObserver.h` | `CKSystemSharingUIObserver` (`src/share.rs:811`) |
+
+## 🟡 MODELED (Rust-only)
+| Symbol | Kind | Header | Wrapped by | Why it is not VERIFIED |
+| --- | --- | --- | --- | --- |
+| `CKAllowedSharingOptions` | class | `CKAllowedSharingOptions.h` | `CKAllowedSharingOptions` (`src/share.rs:489`) | Rust value model; never populated from or passed to CloudKit |
+| `CKSharingParticipantAccessOption` | enum | `CKAllowedSharingOptions.h` | `CKSharingParticipantAccessOption` (`src/share.rs:427`) | Rust value model; never populated from or passed to CloudKit |
+| `CKSharingParticipantPermissionOption` | enum | `CKAllowedSharingOptions.h` | `CKSharingParticipantPermissionOption` (`src/share.rs:458`) | Rust value model; never populated from or passed to CloudKit |
+| `CKDatabaseOperation` | class | `CKDatabaseOperation.h` | `CKDatabaseOperation` (`src/operation_support.rs:275`) | Rust builder; its settings are not applied to the CloudKit operations the crate runs |
+| `CKDatabaseNotification` | class | `CKNotification.h` | `CKDatabaseNotification` (`src/notification.rs:259`) | Rust value model; nothing parses a real push payload into it |
+| `CKNotification` | class | `CKNotification.h` | `CKNotification` (`src/notification.rs:83`) | Rust value model; nothing parses a real push payload into it |
+| `CKNotificationID` | class | `CKNotification.h` | `CKNotificationID` (`src/notification.rs:7`) | Rust value model; nothing parses a real push payload into it |
+| `CKNotificationType` | enum | `CKNotification.h` | `CKNotificationType` (`src/notification.rs:23`) | Rust value model; nothing parses a real push payload into it |
+| `CKQueryNotification` | class | `CKNotification.h` | `CKQueryNotification` (`src/notification.rs:158`) | Rust value model; nothing parses a real push payload into it |
+| `CKQueryNotificationReason` | enum | `CKNotification.h` | `CKQueryNotificationReason` (`src/notification.rs:55`) | Rust value model; nothing parses a real push payload into it |
+| `CKRecordZoneNotification` | class | `CKNotification.h` | `CKRecordZoneNotification` (`src/notification.rs:220`) | Rust value model; nothing parses a real push payload into it |
+| `CKOperation` | class | `CKOperation.h` | `CKOperation` (`src/operation_support.rs:220`) | Rust builder; its settings are not applied to the CloudKit operations the crate runs |
+| `CKOperationConfiguration` | class | `CKOperation.h` | `CKOperationConfiguration` (`src/operation_support.rs:35`) | Rust builder; its settings are not applied to the CloudKit operations the crate runs |
+| `CKOperationGroup` | class | `CKOperationGroup.h` | `CKOperationGroup` (`src/operation_support.rs:133`) | Rust builder; its settings are not applied to the CloudKit operations the crate runs |
+| `CKOperationGroupTransferSize` | enum | `CKOperationGroup.h` | `CKOperationGroupTransferSize` (`src/operation_support.rs:121`) | Rust builder; its settings are not applied to the CloudKit operations the crate runs |
+| `CKShareAccessRequester` | class | `CKShareAccessRequester.h` | `CKShareAccessRequester` (`src/share.rs:530`) | Rust value model; never populated from or passed to CloudKit |
+| `CKShareBlockedIdentity` | class | `CKShareBlockedIdentity.h` | `CKShareBlockedIdentity` (`src/share.rs:567`) | Rust value model; never populated from or passed to CloudKit |
+| `CKSyncEngine` | class | `CKSyncEngine.h` | `CKSyncEngine` (`src/sync_engine.rs:1291`) | Local simulation in `src/sync_engine.rs`; never contacts CloudKit |
+| `CKSyncEngineDelegate` | protocol | `CKSyncEngine.h` | `CKSyncEngineDelegate` (`src/sync_engine.rs:318`) | Local simulation in `src/sync_engine.rs`; never contacts CloudKit |
+| `CKSyncEngineFetchChangesContext` | class | `CKSyncEngine.h` | `CKSyncEngineFetchChangesContext` (`src/sync_engine.rs:279`) | Local simulation in `src/sync_engine.rs`; never contacts CloudKit |
+| `CKSyncEngineFetchChangesOptions` | class | `CKSyncEngine.h` | `CKSyncEngineFetchChangesOptions` (`src/sync_engine.rs:119`) | Local simulation in `src/sync_engine.rs`; never contacts CloudKit |
+| `CKSyncEngineFetchChangesScope` | class | `CKSyncEngine.h` | `CKSyncEngineFetchChangesScope` (`src/sync_engine.rs:61`) | Local simulation in `src/sync_engine.rs`; never contacts CloudKit |
+| `CKSyncEngineSendChangesContext` | class | `CKSyncEngine.h` | `CKSyncEngineSendChangesContext` (`src/sync_engine.rs:299`) | Local simulation in `src/sync_engine.rs`; never contacts CloudKit |
+| `CKSyncEngineSendChangesOptions` | class | `CKSyncEngine.h` | `CKSyncEngineSendChangesOptions` (`src/sync_engine.rs:251`) | Local simulation in `src/sync_engine.rs`; never contacts CloudKit |
+| `CKSyncEngineSendChangesScope` | class | `CKSyncEngine.h` | `CKSyncEngineSendChangesScope` (`src/sync_engine.rs:159`) | Local simulation in `src/sync_engine.rs`; never contacts CloudKit |
+| `CKSyncEngineSyncReason` | enum | `CKSyncEngine.h` | `CKSyncEngineSyncReason` (`src/sync_engine.rs:21`) | Local simulation in `src/sync_engine.rs`; never contacts CloudKit |
+| `CKSyncEngineConfiguration` | class | `CKSyncEngineConfiguration.h` | `CKSyncEngineConfiguration` (`src/sync_engine.rs:339`) | Local simulation in `src/sync_engine.rs`; never contacts CloudKit |
+| `CKSyncEngineAccountChangeEvent` | class | `CKSyncEngineEvent.h` | `CKSyncEngineAccountChangeEvent` (`src/sync_engine.rs:876`) | Local simulation in `src/sync_engine.rs`; never contacts CloudKit |
+| `CKSyncEngineAccountChangeType` | enum | `CKSyncEngineEvent.h` | `CKSyncEngineAccountChangeType` (`src/sync_engine.rs:721`) | Local simulation in `src/sync_engine.rs`; never contacts CloudKit |
+| `CKSyncEngineDidFetchChangesEvent` | class | `CKSyncEngineEvent.h` | `CKSyncEngineDidFetchChangesEvent` (`src/sync_engine.rs:1096`) | Local simulation in `src/sync_engine.rs`; never contacts CloudKit |
+| `CKSyncEngineDidFetchRecordZoneChangesEvent` | class | `CKSyncEngineEvent.h` | `CKSyncEngineDidFetchRecordZoneChangesEvent` (`src/sync_engine.rs:1071`) | Local simulation in `src/sync_engine.rs`; never contacts CloudKit |
+| `CKSyncEngineDidSendChangesEvent` | class | `CKSyncEngineEvent.h` | `CKSyncEngineDidSendChangesEvent` (`src/sync_engine.rs:1126`) | Local simulation in `src/sync_engine.rs`; never contacts CloudKit |
+| `CKSyncEngineEvent` | class | `CKSyncEngineEvent.h` | `CKSyncEngineEvent` (`src/sync_engine.rs:1158`) | Local simulation in `src/sync_engine.rs`; never contacts CloudKit |
+| `CKSyncEngineEventType` | enum | `CKSyncEngineEvent.h` | `CKSyncEngineEventType` (`src/sync_engine.rs:703`) | Local simulation in `src/sync_engine.rs`; never contacts CloudKit |
+| `CKSyncEngineFailedRecordSave` | class | `CKSyncEngineEvent.h` | `CKSyncEngineFailedRecordSave` (`src/sync_engine.rs:781`) | Local simulation in `src/sync_engine.rs`; never contacts CloudKit |
+| `CKSyncEngineFailedZoneSave` | class | `CKSyncEngineEvent.h` | `CKSyncEngineFailedZoneSave` (`src/sync_engine.rs:801`) | Local simulation in `src/sync_engine.rs`; never contacts CloudKit |
+| `CKSyncEngineFetchedDatabaseChangesEvent` | class | `CKSyncEngineEvent.h` | `CKSyncEngineFetchedDatabaseChangesEvent` (`src/sync_engine.rs:915`) | Local simulation in `src/sync_engine.rs`; never contacts CloudKit |
+| `CKSyncEngineFetchedRecordDeletion` | class | `CKSyncEngineEvent.h` | `CKSyncEngineFetchedRecordDeletion` (`src/sync_engine.rs:738`) | Local simulation in `src/sync_engine.rs`; never contacts CloudKit |
+| `CKSyncEngineFetchedRecordZoneChangesEvent` | class | `CKSyncEngineEvent.h` | `CKSyncEngineFetchedRecordZoneChangesEvent` (`src/sync_engine.rs:938`) | Local simulation in `src/sync_engine.rs`; never contacts CloudKit |
+| `CKSyncEngineFetchedZoneDeletion` | class | `CKSyncEngineEvent.h` | `CKSyncEngineFetchedZoneDeletion` (`src/sync_engine.rs:761`) | Local simulation in `src/sync_engine.rs`; never contacts CloudKit |
+| `CKSyncEngineSentDatabaseChangesEvent` | class | `CKSyncEngineEvent.h` | `CKSyncEngineSentDatabaseChangesEvent` (`src/sync_engine.rs:961`) | Local simulation in `src/sync_engine.rs`; never contacts CloudKit |
+| `CKSyncEngineSentRecordZoneChangesEvent` | class | `CKSyncEngineEvent.h` | `CKSyncEngineSentRecordZoneChangesEvent` (`src/sync_engine.rs:1001`) | Local simulation in `src/sync_engine.rs`; never contacts CloudKit |
+| `CKSyncEngineStateUpdateEvent` | class | `CKSyncEngineEvent.h` | `CKSyncEngineStateUpdateEvent` (`src/sync_engine.rs:861`) | Local simulation in `src/sync_engine.rs`; never contacts CloudKit |
+| `CKSyncEngineWillFetchChangesEvent` | class | `CKSyncEngineEvent.h` | `CKSyncEngineWillFetchChangesEvent` (`src/sync_engine.rs:1041`) | Local simulation in `src/sync_engine.rs`; never contacts CloudKit |
+| `CKSyncEngineWillFetchRecordZoneChangesEvent` | class | `CKSyncEngineEvent.h` | `CKSyncEngineWillFetchRecordZoneChangesEvent` (`src/sync_engine.rs:1056`) | Local simulation in `src/sync_engine.rs`; never contacts CloudKit |
+| `CKSyncEngineWillSendChangesEvent` | class | `CKSyncEngineEvent.h` | `CKSyncEngineWillSendChangesEvent` (`src/sync_engine.rs:1111`) | Local simulation in `src/sync_engine.rs`; never contacts CloudKit |
+| `CKSyncEngineZoneDeletionReason` | enum | `CKSyncEngineEvent.h` | `CKSyncEngineZoneDeletionReason` (`src/sync_engine.rs:730`) | Local simulation in `src/sync_engine.rs`; never contacts CloudKit |
+| `CKSyncEngineRecordZoneChangeBatch` | class | `CKSyncEngineRecordZoneChangeBatch.h` | `CKSyncEngineRecordZoneChangeBatch` (`src/sync_engine.rs:649`) | Local simulation in `src/sync_engine.rs`; never contacts CloudKit |
+| `CKSyncEnginePendingDatabaseChange` | class | `CKSyncEngineState.h` | `CKSyncEnginePendingDatabaseChange` (`src/sync_engine.rs:491`) | Local simulation in `src/sync_engine.rs`; never contacts CloudKit |
+| `CKSyncEnginePendingDatabaseChangeType` | enum | `CKSyncEngineState.h` | `CKSyncEnginePendingDatabaseChangeType` (`src/sync_engine.rs:466`) | Local simulation in `src/sync_engine.rs`; never contacts CloudKit |
+| `CKSyncEnginePendingRecordZoneChange` | class | `CKSyncEngineState.h` | `CKSyncEnginePendingRecordZoneChange` (`src/sync_engine.rs:439`) | Local simulation in `src/sync_engine.rs`; never contacts CloudKit |
+| `CKSyncEnginePendingRecordZoneChangeType` | enum | `CKSyncEngineState.h` | `CKSyncEnginePendingRecordZoneChangeType` (`src/sync_engine.rs:414`) | Local simulation in `src/sync_engine.rs`; never contacts CloudKit |
+| `CKSyncEnginePendingZoneDelete` | class | `CKSyncEngineState.h` | `CKSyncEnginePendingZoneDelete` (`src/sync_engine.rs:544`) | Local simulation in `src/sync_engine.rs`; never contacts CloudKit |
+| `CKSyncEnginePendingZoneSave` | class | `CKSyncEngineState.h` | `CKSyncEnginePendingZoneSave` (`src/sync_engine.rs:514`) | Local simulation in `src/sync_engine.rs`; never contacts CloudKit |
+| `CKSyncEngineState` | class | `CKSyncEngineState.h` | `CKSyncEngineState` (`src/sync_engine.rs:573`) | Local simulation in `src/sync_engine.rs`; never contacts CloudKit |
+| `CKSyncEngineStateSerialization` | class | `CKSyncEngineState.h` | `CKSyncEngineStateSerialization` (`src/sync_engine.rs:46`) | Local simulation in `src/sync_engine.rs`; never contacts CloudKit |
+| `CKSystemSharingUIObserver` | class | `CKSystemSharingUIObserver.h` | `CKSystemSharingUIObserver` (`src/share.rs:811`) | Rust model; its handlers are never registered with CloudKit, so they never fire |
 
 ## 🔴 GAPS
 
