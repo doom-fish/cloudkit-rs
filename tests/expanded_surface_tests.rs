@@ -455,9 +455,9 @@ fn sync_engine_surface_builds_state_batches_and_events() -> Result<(), Box<dyn s
     .with_automatically_sync(false)
     .with_subscription_id("subscription-id");
     let engine = CKSyncEngine::new(configuration);
-    let runtime_fetch_context = engine.fetch_changes(CKSyncEngineSyncReason::Manual);
+    let runtime_fetch_context = engine.simulate_fetch_changes(CKSyncEngineSyncReason::Manual);
     let runtime_batch = engine
-        .send_changes(CKSyncEngineSyncReason::Scheduled)
+        .simulate_send_changes(CKSyncEngineSyncReason::Scheduled)
         .expect("delegate should supply a batch");
 
     engine.handle_event(state_update.clone());

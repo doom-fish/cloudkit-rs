@@ -1582,7 +1582,8 @@ impl_event_from!(CKSyncEngineDidFetchChangesEvent, DidFetchChanges);
 impl_event_from!(CKSyncEngineWillSendChangesEvent, WillSendChanges);
 impl_event_from!(CKSyncEngineDidSendChangesEvent, DidSendChanges);
 
-/// Wraps `CKSyncEngine`.
+/// Local simulation of `CKSyncEngine`: it drives a [`CKSyncEngineDelegate`] in-process and
+/// never contacts `CloudKit`.
 #[derive(Clone)]
 pub struct CKSyncEngine {
     configuration: CKSyncEngineConfiguration,
@@ -1627,8 +1628,12 @@ impl CKSyncEngine {
         &mut self.state
     }
 
-    /// Mirrors `CKSyncEngine.fetchChanges`.
-    pub fn fetch_changes(&self, reason: CKSyncEngineSyncReason) -> CKSyncEngineFetchChangesContext {
+    /// Asks the delegate for fetch options and delivers a `WillFetchChanges` event; it
+    /// fetches nothing.
+    pub fn simulate_fetch_changes(
+        &self,
+        reason: CKSyncEngineSyncReason,
+    ) -> CKSyncEngineFetchChangesContext {
         let default_options =
             CKSyncEngineFetchChangesOptions::new(CKSyncEngineFetchChangesScope::default());
         let provisional_context =
@@ -1643,8 +1648,9 @@ impl CKSyncEngine {
         context
     }
 
-    /// Mirrors `CKSyncEngine.sendChanges`.
-    pub fn send_changes(
+    /// Delivers a `WillSendChanges` event and returns the delegate's next batch; it sends
+    /// nothing.
+    pub fn simulate_send_changes(
         &self,
         reason: CKSyncEngineSyncReason,
     ) -> Option<CKSyncEngineRecordZoneChangeBatch> {
@@ -1657,9 +1663,6 @@ impl CKSyncEngine {
             .delegate()
             .next_record_zone_change_batch_for_context(self, &context)
     }
-
-    /// Mirrors `CKSyncEngine.cancelOperations`.
-    pub fn cancel_operations(&self) {}
 
     /// Mirrors `CKSyncEngine.handleEvent`.
     pub fn handle_event<E>(&self, event: E)

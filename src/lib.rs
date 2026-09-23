@@ -57,7 +57,7 @@ pub mod server_change_token;
 pub mod share;
 /// Exposes `CloudKit` subscription wrappers.
 pub mod subscription;
-/// Exposes `CloudKit` sync-engine wrappers.
+/// Exposes a local, in-process simulation of `CKSyncEngine` that never contacts `CloudKit`.
 pub mod sync_engine;
 /// Exposes `CloudKit` user-identity wrappers.
 pub mod user_identity;
