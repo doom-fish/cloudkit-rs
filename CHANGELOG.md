@@ -84,6 +84,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   holds every field and no pending changes. A share's title, thumbnail and
   type are tracked the same way instead of being re-set on every normalize
   and save.
+- `CKDatabase::perform_query`, `perform_query_with_completion_handler` and
+  `perform_query_async` returned only the first batch of matches and silently
+  skipped matches that failed. They now follow the query cursor until every
+  match is fetched, within the container timeout for the blocking call, and
+  fail when a match fails.
 - `CKShare::new_root_record` returned the root record without the share
   reference CloudKit sets on it, so saving the share with that root record
   dropped the link. `root_record()` now carries the reference.
@@ -112,6 +117,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and `simulate_send_changes`; they never contacted CloudKit.
 - **Breaking:** `RecordValue` gained a `Location` variant (the enum was already
   `#[non_exhaustive]`), and `QueryOperationResult` gained a `cursor` field.
+- **Breaking:** the `perform_query` family returns every match instead of the
+  first batch and fails on a failed match instead of skipping it.
 - **Breaking:** saves write only changed keys. Code that relied on a save
   re-writing every local field must run a `CKModifyRecordsOperation` with
   `CKRecordSavePolicy::AllKeys`.

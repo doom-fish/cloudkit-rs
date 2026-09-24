@@ -216,25 +216,68 @@ public func ckDatabasePerformQuerySync(
         let database = try ckMakeDatabase(containerIdentifier: containerIdentifier, scopeRaw: databaseScope)
         let query = try ckDecodeQuery(try ckDecodeJSON(queryJSON, as: CKQueryPayload.self))
         let zoneID = try zoneIDJSON.map { try ckDecodeZoneID(try ckDecodeJSON($0, as: CKRecordZoneIDPayload.self)) }
-        let (outcome, _) = try ckRunQuery(
-            database: database,
-            query: query,
-            cursor: nil,
-            zoneID: zoneID,
-            desiredKeys: nil,
-            resultsLimit: nil,
-            qualityOfService: .userInitiated,
-            timeoutSeconds: timeoutSeconds
-        )
-        if let error = outcome.reportedError(label: "CloudKit performQuery", timeoutSeconds: timeoutSeconds, writes: false) {
-            throw error
-        }
-        let records = outcome.results.compactMap { try? $0.1.get() }
+        let deadline = timeoutSeconds < 0 ? nil : Date(timeIntervalSinceNow: timeoutSeconds)
+        var records: [CKRecord] = []
+        var cursor: CKQueryOperation.Cursor?
+        repeat {
+            let (outcome, nextCursor) = try ckRunQuery(
+                database: database,
+                query: cursor == nil ? query : nil,
+                cursor: cursor,
+                zoneID: zoneID,
+                desiredKeys: nil,
+                resultsLimit: nil,
+                qualityOfService: .userInitiated,
+                timeoutSeconds: deadline.map { max(0, $0.timeIntervalSinceNow) } ?? -1
+            )
+            if let error = outcome.reportedError(label: "CloudKit performQuery", timeoutSeconds: timeoutSeconds, writes: false) {
+                throw error
+            }
+            for (_, result) in outcome.results {
+                records.append(try result.get())
+            }
+            cursor = nextCursor
+        } while cursor != nil
         outJSON?.pointee = ckCString(try ckEncodeJSON(try records.map(ckEncodeRecord)))
         return CKR_OK
     } catch let error as NSError {
         ckWriteError(error, to: outErrorJSON)
         return ckFailureStatus(error)
+    }
+}
+
+func ckFetchAllQueryResults(
+    database: CKDatabase,
+    query: CKQuery,
+    zoneID: CKRecordZone.ID?,
+    cursor: CKQueryOperation.Cursor?,
+    records: [CKRecord],
+    completion: @escaping (Result<[CKRecord], Error>) -> Void
+) {
+    let pageCompletion: (Result<(matchResults: [(CKRecord.ID, Result<CKRecord, Error>)], queryCursor: CKQueryOperation.Cursor?), Error>) -> Void = { result in
+        do {
+            let output = try result.get()
+            let page = try output.matchResults.map { try $0.1.get() }
+            guard let nextCursor = output.queryCursor else {
+                completion(.success(records + page))
+                return
+            }
+            ckFetchAllQueryResults(
+                database: database,
+                query: query,
+                zoneID: zoneID,
+                cursor: nextCursor,
+                records: records + page,
+                completion: completion
+            )
+        } catch {
+            completion(.failure(error))
+        }
+    }
+    if let cursor {
+        database.fetch(withCursor: cursor, desiredKeys: nil, resultsLimit: CKQueryOperation.maximumResults, completionHandler: pageCompletion)
+    } else {
+        database.fetch(withQuery: query, inZoneWith: zoneID, desiredKeys: nil, resultsLimit: CKQueryOperation.maximumResults, completionHandler: pageCompletion)
     }
 }
 
@@ -252,13 +295,12 @@ public func ckDatabasePerformQueryAsync(
         let database = try ckMakeDatabase(containerIdentifier: containerIdentifier, scopeRaw: databaseScope)
         let query = try ckDecodeQuery(try ckDecodeJSON(queryJSON, as: CKQueryPayload.self))
         let zoneID = try zoneIDJSON.map { try ckDecodeZoneID(try ckDecodeJSON($0, as: CKRecordZoneIDPayload.self)) }
-        database.fetch(withQuery: query, inZoneWith: zoneID, desiredKeys: nil, resultsLimit: CKQueryOperation.maximumResults) { result in
+        ckFetchAllQueryResults(database: database, query: query, zoneID: zoneID, cursor: nil, records: []) { result in
             let box: CKJSONStringCallbackBox = ckUnretained(boxPtr, as: CKJSONStringCallbackBox.self)
             defer { ckRelease(boxPtr) }
             switch result {
-            case .success(let output):
+            case .success(let records):
                 do {
-                    let records = output.matchResults.compactMap { try? $0.1.get() }
                     box.succeed(json: try ckEncodeJSON(try records.map(ckEncodeRecord)))
                 } catch let error as NSError {
                     box.fail(error: error)

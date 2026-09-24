@@ -67,6 +67,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 `QueryPredicate::format(format, arguments)` accepts a raw `NSPredicate` format string with an argument list. A format that `NSPredicate` cannot parse, or that has too few arguments, returns an error instead of raising an Objective-C exception. `CloudKit` itself only supports a subset of predicate operators (see `CKQuery.h`); unsupported operators fail when the query runs.
 
+`CKDatabase::perform_query`, `perform_query_with_completion_handler` and `perform_query_async` return every matching record: they follow the query cursor until `CloudKit` has returned all matches, and fail if any match fails. The blocking call keeps the whole query within the container's timeout. Use `fetch_query_results` and `fetch_query_results_from_cursor` to page through large result sets instead.
+
 Query subscriptions take the same `QueryPredicate`. A subscription fetched from `CloudKit` reports the server's predicate as `QueryPredicate::Format` text, and saving it again reuses the server's archived predicate unchanged.
 
 ## Records
