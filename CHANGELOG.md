@@ -67,6 +67,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unknown raw values were stored unchecked. Both now return
   `BridgeInvalidArgument`, and the bridge sets `publicPermission` only when
   it changes.
+- Adding or removing share participants and changing `allowsAccessRequests`
+  made CloudKit terminate unentitled processes with a trap that cannot be
+  caught. The bridge now checks the `com.apple.developer.icloud-services`
+  (CloudKit), `com.apple.developer.icloud-container-identifiers` and
+  `com.apple.application-identifier` entitlements first and returns
+  `BridgeCloudKitNotEntitled`; opening a container requires the same
+  entitlements. In entitled processes these calls run inside the `@try` shim,
+  so a CloudKit exception becomes an error.
 
 ### Changed
 
@@ -92,6 +100,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and `simulate_send_changes`; they never contacted CloudKit.
 - **Breaking:** `RecordValue` gained a `Location` variant (the enum was already
   `#[non_exhaustive]`), and `QueryOperationResult` gained a `cursor` field.
+- **Breaking:** `CKShare::remove_participant` returns `BridgeInvalidArgument`
+  for the share's owner instead of silently keeping the owner,
+  `with_allows_access_requests` returns an error before macOS 26 instead of
+  dropping the value, and a participant without archived data is rejected
+  instead of being replaced by a new one-time URL participant.
 - Blocking calls default to a 30-second timeout that is now configurable with
   `CKContainer::with_timeout`; `None` waits for CloudKit to finish.
 - `rust-version` is now 1.82 and `doom-fish-utils` must be `>=0.4.1, <0.5`.
@@ -109,7 +122,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `CKQueryOperation::cursor`/`with_cursor`,
   `CKDatabase::fetch_query_results_from_cursor` and
   `fetch_query_results_from_cursor_async`.
-- `CloudKitErrorCode::BridgeContainerNotEntitled`.
+- `CloudKitErrorCode::BridgeContainerNotEntitled` and
+  `CloudKitErrorCode::BridgeCloudKitNotEntitled`.
 
 ### Removed
 

@@ -129,3 +129,33 @@ BOOL CKXRecordSetParent(CKRecord *record, CKReference *parent, NSError **error) 
         return NO;
     }
 }
+
+BOOL CKXShareAddParticipant(CKShare *share, CKShareParticipant *participant, NSError **error) {
+    @try {
+        [share addParticipant:participant];
+        return YES;
+    } @catch (NSException *exception) {
+        CKXWriteException(exception, error);
+        return NO;
+    }
+}
+
+BOOL CKXShareRemoveParticipant(CKShare *share, CKShareParticipant *participant, NSError **error) {
+    @try {
+        [share removeParticipant:participant];
+        return YES;
+    } @catch (NSException *exception) {
+        CKXWriteException(exception, error);
+        return NO;
+    }
+}
+
+BOOL CKXShareSetAllowsAccessRequests(CKShare *share, BOOL allowsAccessRequests, NSError **error) {
+    @try {
+        share.allowsAccessRequests = allowsAccessRequests;
+        return YES;
+    } @catch (NSException *exception) {
+        CKXWriteException(exception, error);
+        return NO;
+    }
+}

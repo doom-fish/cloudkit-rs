@@ -104,11 +104,8 @@ func ckEncodeShareParticipant(_ participant: CKShare.Participant) -> CKSharePart
 }
 
 func ckDecodeShareParticipant(_ payload: CKShareParticipantPayload) throws -> CKShare.Participant {
-    if !payload.archivedData.isEmpty {
-        return try ckDecodeSecureCodingObject(payload.archivedData, as: CKShare.Participant.self)
+    guard !payload.archivedData.isEmpty else {
+        throw ckInvalidArgument("Share participant \(payload.participantID) has no archived data; add a participant CloudKit returned instead")
     }
-    if #available(macOS 15.0, *) {
-        return CKShare.Participant.oneTimeURLParticipant()
-    }
-    throw ckBridgeNSError(code: CKR_FAILURE, message: "Share participant payload did not contain archived data")
+    return try ckDecodeSecureCodingObject(payload.archivedData, as: CKShare.Participant.self)
 }

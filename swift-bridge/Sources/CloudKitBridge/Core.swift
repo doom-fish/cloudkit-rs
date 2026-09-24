@@ -9,8 +9,15 @@ let CKR_FAILURE: Int32 = -2
 let CKR_TIMED_OUT: Int32 = -3
 let CKR_DEFAULT_CONTAINER_UNAVAILABLE: Int32 = -4
 let CKR_CONTAINER_NOT_ENTITLED: Int32 = -5
+let CKR_CLOUDKIT_NOT_ENTITLED: Int32 = -6
 let CKR_BRIDGE_ERROR_DOMAIN = "CloudKitBridge"
-private let ckICloudContainerIdentifiersEntitlement = "com.apple.developer.icloud-container-identifiers" as CFString
+private let ckICloudContainerIdentifiersEntitlement = "com.apple.developer.icloud-container-identifiers"
+private let ckICloudServicesEntitlement = "com.apple.developer.icloud-services"
+private let ckCloudKitServices: Set<String> = ["CloudKit", "CloudKit-Anonymous", "*"]
+private let ckApplicationIdentifierEntitlements = [
+    "com.apple.application-identifier",
+    "com.apple.developer.associated-application-identifier",
+]
 private let ckFallbackErrorJSON = "{\"domain\":\"CloudKitBridge\",\"code\":-2,\"message\":\"CloudKit bridge could not encode an error payload\",\"retryAfterSeconds\":null}"
 
 @_cdecl("ck_string_free")
@@ -152,23 +159,50 @@ func ckWriteError(_ error: NSError, to outError: UnsafeMutablePointer<UnsafeMuta
     outError.pointee = ckCString(ckErrorJSON(error))
 }
 
-func ckEntitledContainerIdentifiers() -> [String] {
+func ckEntitlementStrings(_ entitlement: String) -> [String] {
     guard let task = SecTaskCreateFromSelf(nil),
-          let value = SecTaskCopyValueForEntitlement(task, ckICloudContainerIdentifiersEntitlement, nil) else {
+          let value = SecTaskCopyValueForEntitlement(task, entitlement as CFString, nil) else {
         return []
     }
 
-    if let identifiers = value as? [String] {
-        return identifiers.filter { !$0.isEmpty }
+    if let string = value as? String {
+        return string.isEmpty ? [] : [string]
     }
-    if let identifiers = value as? NSArray {
-        return identifiers.compactMap { $0 as? String }.filter { !$0.isEmpty }
+    if let strings = value as? NSArray {
+        return strings.compactMap { $0 as? String }.filter { !$0.isEmpty }
     }
     return []
 }
 
+func ckIsTeamScopedApplicationIdentifier(_ identifier: String) -> Bool {
+    let parts = identifier.split(separator: ".", maxSplits: 1, omittingEmptySubsequences: false)
+    guard parts.count == 2, parts[0].count == 10, !parts[1].isEmpty else {
+        return false
+    }
+    return parts[0].unicodeScalars.allSatisfy { ("0"..."9").contains($0) || ("A"..."Z").contains($0) }
+}
+
+func ckRequireCloudKitEntitlements(for label: String) throws {
+    var missing: [String] = []
+    if !ckEntitlementStrings(ckICloudServicesEntitlement).contains(where: ckCloudKitServices.contains) {
+        missing.append("\(ckICloudServicesEntitlement) including CloudKit")
+    }
+    if ckEntitlementStrings(ckICloudContainerIdentifiersEntitlement).isEmpty {
+        missing.append(ckICloudContainerIdentifiersEntitlement)
+    }
+    if !ckApplicationIdentifierEntitlements.flatMap(ckEntitlementStrings).contains(where: ckIsTeamScopedApplicationIdentifier) {
+        missing.append("com.apple.application-identifier in TEAMID.BUNDLEID form")
+    }
+    guard missing.isEmpty else {
+        throw ckBridgeNSError(
+            code: CKR_CLOUDKIT_NOT_ENTITLED,
+            message: "\(label) needs CloudKit entitlements this process lacks (\(missing.joined(separator: ", "))). CloudKit terminates unentitled processes that make this call, so the bridge refuses it."
+        )
+    }
+}
+
 func ckMakeContainer(_ identifier: UnsafePointer<CChar>?) throws -> CKContainer {
-    let entitledIdentifiers = ckEntitledContainerIdentifiers()
+    let entitledIdentifiers = ckEntitlementStrings(ckICloudContainerIdentifiersEntitlement)
     if let identifier {
         let identifier = String(cString: identifier)
         guard !identifier.isEmpty else {
@@ -180,6 +214,7 @@ func ckMakeContainer(_ identifier: UnsafePointer<CChar>?) throws -> CKContainer 
                 message: "CloudKit container \(identifier) is not listed in this process's com.apple.developer.icloud-container-identifiers entitlement. CloudKit terminates processes that open unentitled containers, so the bridge refuses to open it."
             )
         }
+        try ckRequireCloudKitEntitlements(for: "Opening CloudKit container \(identifier)")
         return CKContainer(identifier: identifier)
     }
 
@@ -189,6 +224,7 @@ func ckMakeContainer(_ identifier: UnsafePointer<CChar>?) throws -> CKContainer 
             message: "CloudKit default container is unavailable for this process because no iCloud container entitlement was found. Use CKContainer::container(\"iCloud.<container-id>\") or run inside a signed app bundle with CloudKit entitlements."
         )
     }
+    try ckRequireCloudKitEntitlements(for: "Opening CloudKit container \(identifier)")
     return CKContainer(identifier: identifier)
 }
 

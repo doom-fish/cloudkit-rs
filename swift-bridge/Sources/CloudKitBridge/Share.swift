@@ -1,4 +1,5 @@
 import CloudKit
+import CloudKitObjCBridge
 import Foundation
 
 struct CKSharePayload: Codable {
@@ -59,19 +60,30 @@ func ckEncodeShare(_ share: CKShare, rootRecord: CKRecordPayload?, isZoneWide: B
 }
 
 func ckSyncShareParticipants(from payload: CKSharePayload, into share: CKShare) throws {
-    let ownerID = share.owner.participantID
-    let currentUserID = share.currentUserParticipant?.participantID
     let desiredIDs = Set(payload.participants.map(\.participantID))
+    let currentIDs = Set(share.participants.map(\.participantID))
+    let removals = share.participants.filter { !desiredIDs.contains($0.participantID) }
+    let additions = payload.participants.filter { !currentIDs.contains($0.participantID) }
 
-    for participant in share.participants where participant.participantID != ownerID && participant.participantID != currentUserID {
-        if !desiredIDs.contains(participant.participantID) {
-            share.removeParticipant(participant)
+    if removals.contains(where: { $0.participantID == share.owner.participantID }) {
+        throw ckInvalidArgument("A CKShare's owner cannot be removed from the share")
+    }
+    guard !removals.isEmpty || !additions.isEmpty else {
+        return
+    }
+    try ckRequireCloudKitEntitlements(for: "Changing a CKShare's participants")
+
+    for participant in removals {
+        var error: NSError?
+        guard CKXShareRemoveParticipant(share, participant, &error) else {
+            throw error ?? ckInvalidArgument("CKShare.removeParticipant(_:) rejected participant \(participant.participantID)")
         }
     }
-
-    let existingIDs = Set(share.participants.map(\.participantID))
-    for participantPayload in payload.participants where !existingIDs.contains(participantPayload.participantID) {
-        share.addParticipant(try ckDecodeShareParticipant(participantPayload))
+    for participantPayload in additions {
+        var error: NSError?
+        guard CKXShareAddParticipant(share, try ckDecodeShareParticipant(participantPayload), &error) else {
+            throw error ?? ckInvalidArgument("CKShare.addParticipant(_:) rejected participant \(participantPayload.participantID)")
+        }
     }
 }
 
@@ -117,9 +129,17 @@ func ckDecodeShare(_ payload: CKSharePayload) throws -> CKShare {
     if let shareType = payload.shareType {
         share[CKShare.SystemFieldKey.shareType] = shareType as NSString
     }
-    if #available(macOS 26.0, *), let allowsAccessRequests = payload.allowsAccessRequests,
-       share.allowsAccessRequests != allowsAccessRequests {
-        share.allowsAccessRequests = allowsAccessRequests
+    if let allowsAccessRequests = payload.allowsAccessRequests {
+        guard #available(macOS 26.0, *) else {
+            throw ckBridgeNSError(code: CKR_FAILURE, message: "CKShare.allowsAccessRequests requires macOS 26.0 or newer")
+        }
+        if share.allowsAccessRequests != allowsAccessRequests {
+            try ckRequireCloudKitEntitlements(for: "Setting CKShare.allowsAccessRequests")
+            var error: NSError?
+            guard CKXShareSetAllowsAccessRequests(share, allowsAccessRequests, &error) else {
+                throw error ?? ckInvalidArgument("CKShare.allowsAccessRequests rejected \(allowsAccessRequests)")
+            }
+        }
     }
     try ckSyncShareParticipants(from: payload, into: share)
     return share

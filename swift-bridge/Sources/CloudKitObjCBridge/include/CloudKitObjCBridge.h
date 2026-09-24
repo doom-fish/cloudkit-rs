@@ -71,4 +71,22 @@ BOOL CKXRecordSetParent(
     NSError * _Nullable * _Nullable error
 );
 
+BOOL CKXShareAddParticipant(
+    CKShare *share,
+    CKShareParticipant *participant,
+    NSError * _Nullable * _Nullable error
+);
+
+BOOL CKXShareRemoveParticipant(
+    CKShare *share,
+    CKShareParticipant *participant,
+    NSError * _Nullable * _Nullable error
+);
+
+BOOL CKXShareSetAllowsAccessRequests(
+    CKShare *share,
+    BOOL allowsAccessRequests,
+    NSError * _Nullable * _Nullable error
+) API_AVAILABLE(macos(26.0));
+
 NS_ASSUME_NONNULL_END
