@@ -48,6 +48,7 @@ private func ckDiscoverUserIdentity(
 
 private func ckEncodeModifyRecordsResult(
     request: CKModifyRecordsOperationPayload,
+    originals: [CKRecord.ID: CKRecordPayload],
     saveResultsByID: [CKRecord.ID: Result<CKRecord, Error>] = [:],
     deleteResultsByID: [CKRecord.ID: Result<Void, Error>] = [:],
     operationError: NSError? = nil
@@ -70,7 +71,7 @@ private func ckEncodeModifyRecordsResult(
         saves: CKOperationOutcome(results: saves, operationError: operationError, timedOut: false),
         deletes: deletes
     )
-    return ckEncodeModifyRecordsOutcome(outcome, label: "CKDatabase.modifyRecords", timeoutSeconds: -1)
+    return ckEncodeModifyRecordsOutcome(outcome, originals: originals, label: "CKDatabase.modifyRecords", timeoutSeconds: -1)
 }
 
 private func ckEncodeDatabaseChangesResult(
@@ -222,9 +223,9 @@ public func ckDatabaseModifyRecordsAsync(
     do {
         let database = try ckMakeDatabase(containerIdentifier: containerIdentifier, scopeRaw: databaseScope)
         let payload = try ckDecodeJSON(operationJSON, as: CKModifyRecordsOperationPayload.self)
-        let recordsToSave = try payload.recordsToSave.map(ckDecodeRecord)
-        let recordIDsToDelete = try payload.recordIDsToDelete.map(ckDecodeRecordID)
         let savePolicy = try ckSavePolicy(payload.savePolicy)
+        let (recordsToSave, originals) = try ckDecodeRecordsToSave(payload.recordsToSave, savePolicy: savePolicy)
+        let recordIDsToDelete = try payload.recordIDsToDelete.map(ckDecodeRecordID)
 
         database.modifyRecords(
             saving: recordsToSave,
@@ -240,6 +241,7 @@ public func ckDatabaseModifyRecordsAsync(
                 case .success(let output):
                     encodedResult = try ckEncodeModifyRecordsResult(
                         request: payload,
+                        originals: originals,
                         saveResultsByID: output.saveResults,
                         deleteResultsByID: output.deleteResults,
                         operationError: nil
@@ -247,6 +249,7 @@ public func ckDatabaseModifyRecordsAsync(
                 case .failure(let error):
                     encodedResult = try ckEncodeModifyRecordsResult(
                         request: payload,
+                        originals: originals,
                         operationError: error as NSError
                     )
                 }

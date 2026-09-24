@@ -120,8 +120,25 @@ func ckRunModifyRecords(
     return CKModifyRecordsOutcome(saves: outcome, deletes: deletes.results)
 }
 
+func ckDecodeRecordsToSave(
+    _ payloads: [CKRecordPayload],
+    savePolicy: CKModifyRecordsOperation.RecordSavePolicy
+) throws -> (records: [CKRecord], originals: [CKRecord.ID: CKRecordPayload]) {
+    var records: [CKRecord] = []
+    var originals: [CKRecord.ID: CKRecordPayload] = [:]
+    for payload in payloads {
+        let record = try ckDecodeRecord(payload, allFields: savePolicy == .allKeys)
+        records.append(record)
+        if originals[record.recordID] == nil {
+            originals[record.recordID] = payload
+        }
+    }
+    return (records, originals)
+}
+
 func ckEncodeModifyRecordsOutcome(
     _ outcome: CKModifyRecordsOutcome,
+    originals: [CKRecord.ID: CKRecordPayload],
     label: String,
     timeoutSeconds: Double
 ) -> CKModifyRecordsResultPayload {
@@ -130,7 +147,15 @@ func ckEncodeModifyRecordsOutcome(
     for (recordID, result) in outcome.saves.results {
         switch result {
         case .success(let record):
-            let (payload, encodeError) = ckEncodeRecordResult(record)
+            let payload: CKRecordPayload?
+            let encodeError: CKErrorPayload?
+            do {
+                payload = try ckEncodeSavedRecord(record, original: originals[recordID])
+                encodeError = nil
+            } catch let error as NSError {
+                payload = nil
+                encodeError = ckErrorPayload(from: error)
+            }
             if let payload {
                 savedRecords.append(payload)
             }
@@ -296,16 +321,23 @@ public func ckDatabaseExecuteModifyRecordsSync(
     do {
         let database = try ckMakeDatabase(containerIdentifier: containerIdentifier, scopeRaw: databaseScope)
         let payload = try ckDecodeJSON(operationJSON, as: CKModifyRecordsOperationPayload.self)
+        let savePolicy = try ckSavePolicy(payload.savePolicy)
+        let (recordsToSave, originals) = try ckDecodeRecordsToSave(payload.recordsToSave, savePolicy: savePolicy)
         let outcome = ckRunModifyRecords(
             database: database,
-            recordsToSave: try payload.recordsToSave.map(ckDecodeRecord),
+            recordsToSave: recordsToSave,
             recordIDsToDelete: try payload.recordIDsToDelete.map(ckDecodeRecordID),
-            savePolicy: try ckSavePolicy(payload.savePolicy),
+            savePolicy: savePolicy,
             atomic: payload.atomic,
             qualityOfService: nil,
             timeoutSeconds: timeoutSeconds
         )
-        let result = ckEncodeModifyRecordsOutcome(outcome, label: "CKModifyRecordsOperation", timeoutSeconds: timeoutSeconds)
+        let result = ckEncodeModifyRecordsOutcome(
+            outcome,
+            originals: originals,
+            label: "CKModifyRecordsOperation",
+            timeoutSeconds: timeoutSeconds
+        )
         outJSON?.pointee = ckCString(try ckEncodeJSON(result))
         return CKR_OK
     } catch let error as NSError {

@@ -11,9 +11,6 @@ struct CKSharePayload: Codable {
     var participants: [CKShareParticipantPayload]
     var owner: CKShareParticipantPayload?
     var currentUserParticipant: CKShareParticipantPayload?
-    var title: String?
-    var thumbnailImageData: [UInt8]?
-    var shareType: String?
     var allowsAccessRequests: Bool?
     var isZoneWide: Bool
 }
@@ -32,10 +29,12 @@ struct CKShareMetadataPayload: Codable {
     var rootRecordID: CKRecordIDPayload?
 }
 
-func ckEncodeShare(_ share: CKShare, rootRecord: CKRecordPayload?, isZoneWide: Bool) throws -> CKSharePayload {
-    let title = share[CKShare.SystemFieldKey.title] as? String
-    let thumbnailImageData = (share[CKShare.SystemFieldKey.thumbnailImageData] as? Data).map([UInt8].init)
-    let shareType = share[CKShare.SystemFieldKey.shareType] as? String
+func ckEncodeShare(
+    _ share: CKShare,
+    rootRecord: CKRecordPayload?,
+    isZoneWide: Bool,
+    keepingUnchangedFieldsOf originalShareRecord: CKRecordPayload? = nil
+) throws -> CKSharePayload {
     let allowsAccessRequests: Bool?
     if #available(macOS 26.0, *) {
         allowsAccessRequests = share.allowsAccessRequests
@@ -43,7 +42,7 @@ func ckEncodeShare(_ share: CKShare, rootRecord: CKRecordPayload?, isZoneWide: B
         allowsAccessRequests = nil
     }
     return CKSharePayload(
-        shareRecord: try ckEncodeRecord(share),
+        shareRecord: try originalShareRecord.map { try ckEncodeRecord(share, keepingUnchangedFieldsOf: $0) } ?? ckEncodeRecord(share),
         rootRecord: rootRecord,
         zoneID: ckEncodeZoneID(share.recordID.zoneID),
         publicPermission: Int32(clamping: share.publicPermission.rawValue),
@@ -51,9 +50,6 @@ func ckEncodeShare(_ share: CKShare, rootRecord: CKRecordPayload?, isZoneWide: B
         participants: share.participants.map(ckEncodeShareParticipant),
         owner: ckEncodeShareParticipant(share.owner),
         currentUserParticipant: share.currentUserParticipant.map(ckEncodeShareParticipant),
-        title: title,
-        thumbnailImageData: thumbnailImageData,
-        shareType: shareType,
         allowsAccessRequests: allowsAccessRequests,
         isZoneWide: isZoneWide
     )
@@ -111,7 +107,7 @@ func ckDecodeShare(_ payload: CKSharePayload) throws -> CKShare {
     } else if payload.isZoneWide {
         share = CKShare(recordZoneID: try ckDecodeZoneID(payload.zoneID))
     } else if let rootRecord = payload.rootRecord {
-        share = CKShare(rootRecord: try ckDecodeRecord(rootRecord))
+        share = CKShare(rootRecord: try ckDecodeRecord(rootRecord, allFields: false))
     } else {
         throw ckBridgeNSError(code: CKR_INVALID_ARGUMENT, message: "Share payload missing root record for non-zone-wide share")
     }
@@ -119,16 +115,7 @@ func ckDecodeShare(_ payload: CKSharePayload) throws -> CKShare {
     if share.publicPermission.rawValue != Int(payload.publicPermission) {
         share.publicPermission = try ckSharePublicPermission(payload.publicPermission)
     }
-    try ckApplyRecordPayload(payload.shareRecord, to: share)
-    if let title = payload.title {
-        share[CKShare.SystemFieldKey.title] = title as NSString
-    }
-    if let thumbnailImageData = payload.thumbnailImageData {
-        share[CKShare.SystemFieldKey.thumbnailImageData] = NSData(data: Data(thumbnailImageData))
-    }
-    if let shareType = payload.shareType {
-        share[CKShare.SystemFieldKey.shareType] = shareType as NSString
-    }
+    try ckApplyRecordPayload(payload.shareRecord, to: share, allFields: false)
     if let allowsAccessRequests = payload.allowsAccessRequests {
         guard #available(macOS 26.0, *) else {
             throw ckBridgeNSError(code: CKR_FAILURE, message: "CKShare.allowsAccessRequests requires macOS 26.0 or newer")
@@ -183,8 +170,10 @@ public func ckShareCreateRootRecord(
 ) -> Int32 {
     do {
         let rootRecordPayload = try ckDecodeJSON(rootRecordJSON, as: CKRecordPayload.self)
-        let share = CKShare(rootRecord: try ckDecodeRecord(rootRecordPayload))
-        outJSON?.pointee = ckCString(try ckEncodeJSON(try ckEncodeShare(share, rootRecord: rootRecordPayload, isZoneWide: false)))
+        let rootRecord = try ckDecodeRecord(rootRecordPayload, allFields: false)
+        let share = CKShare(rootRecord: rootRecord)
+        let sharedRootRecord = try ckEncodeRecord(rootRecord, keepingUnchangedFieldsOf: rootRecordPayload)
+        outJSON?.pointee = ckCString(try ckEncodeJSON(try ckEncodeShare(share, rootRecord: sharedRootRecord, isZoneWide: false)))
         return CKR_OK
     } catch let error as NSError {
         ckWriteError(error, to: outErrorJSON)
@@ -218,7 +207,13 @@ public func ckShareNormalize(
     do {
         let payload = try ckDecodeJSON(shareJSON, as: CKSharePayload.self)
         let share = try ckDecodeShare(payload)
-        outJSON?.pointee = ckCString(try ckEncodeJSON(try ckEncodeShare(share, rootRecord: payload.rootRecord, isZoneWide: payload.isZoneWide)))
+        let encoded = try ckEncodeShare(
+            share,
+            rootRecord: payload.rootRecord,
+            isZoneWide: payload.isZoneWide,
+            keepingUnchangedFieldsOf: payload.shareRecord
+        )
+        outJSON?.pointee = ckCString(try ckEncodeJSON(encoded))
         return CKR_OK
     } catch let error as NSError {
         ckWriteError(error, to: outErrorJSON)

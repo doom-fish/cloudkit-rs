@@ -304,7 +304,11 @@ func ckDecodeRecordValue(_ payload: CKRecordValuePayload, key: String) throws ->
     case .reference:
         return try ckDecodeReference(try ckRequired(payload.referenceValue, payload.kind, key))
     case .location:
-        return try ckDecodeLocation(try ckRequired(payload.locationValue, payload.kind, key))
+        let location = try ckRequired(payload.locationValue, payload.kind, key)
+        guard location.timestamp != nil else {
+            throw ckInvalidArgument("CKRecord location value for \(key) has no timestamp")
+        }
+        return try ckDecodeLocation(location)
     case .array:
         let items = try ckRequired(payload.arrayValue, payload.kind, key)
         return try items.enumerated().map { index, item in
@@ -320,12 +324,16 @@ func ckSetRecordObject(_ record: CKRecord, _ value: (any CKRecordValue)?, forKey
     }
 }
 
-func ckApplyRecordPayload(_ payload: CKRecordPayload, to record: CKRecord) throws {
-    for key in payload.fields.keys.sorted() {
+func ckApplyRecordPayload(_ payload: CKRecordPayload, to record: CKRecord, allFields: Bool) throws {
+    let changedKeys = Set(payload.changedKeys)
+    let keysToSet = allFields || payload.encodedSystemFields.isEmpty
+        ? payload.fields.keys.sorted()
+        : changedKeys.filter { payload.fields[$0] != nil }.sorted()
+    for key in keysToSet {
         guard let valuePayload = payload.fields[key] else { continue }
         try ckSetRecordObject(record, try ckDecodeRecordValue(valuePayload, key: key), forKey: key)
     }
-    for key in payload.changedKeys where payload.fields[key] == nil {
+    for key in changedKeys.sorted() where payload.fields[key] == nil {
         try ckSetRecordObject(record, nil, forKey: key)
     }
 
@@ -343,7 +351,7 @@ func ckApplyRecordPayload(_ payload: CKRecordPayload, to record: CKRecord) throw
     }
 }
 
-func ckDecodeRecord(_ payload: CKRecordPayload) throws -> CKRecord {
+func ckDecodeRecord(_ payload: CKRecordPayload, allFields: Bool) throws -> CKRecord {
     let record: CKRecord
     if payload.encodedSystemFields.isEmpty {
         var error: NSError?
@@ -364,8 +372,23 @@ func ckDecodeRecord(_ payload: CKRecordPayload) throws -> CKRecord {
         unarchiver.finishDecoding()
     }
 
-    try ckApplyRecordPayload(payload, to: record)
+    try ckApplyRecordPayload(payload, to: record, allFields: allFields)
     return record
+}
+
+func ckEncodeRecord(_ record: CKRecord, keepingUnchangedFieldsOf original: CKRecordPayload) throws -> CKRecordPayload {
+    var payload = try ckEncodeRecord(record)
+    let changedKeys = Set(payload.changedKeys)
+    for (key, value) in original.fields where payload.fields[key] == nil && !changedKeys.contains(key) {
+        payload.fields[key] = value
+    }
+    return payload
+}
+
+func ckEncodeSavedRecord(_ record: CKRecord, original: CKRecordPayload?) throws -> CKRecordPayload {
+    var payload = try original.map { try ckEncodeRecord(record, keepingUnchangedFieldsOf: $0) } ?? ckEncodeRecord(record)
+    payload.changedKeys = []
+    return payload
 }
 
 func ckEncodeRecord(_ record: CKRecord) throws -> CKRecordPayload {

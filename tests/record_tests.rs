@@ -59,10 +59,9 @@ fn invalid_record_types_return_errors_instead_of_aborting() {
 #[test]
 fn every_value_type_decodes_into_a_cloudkit_record() {
     let mut record = CKRecord::new("AllValues").expect("record creation should work locally");
-    let mut location = RecordLocation::new(59.3293, 18.0686);
+    let mut location = RecordLocation::new(59.3293, 18.0686, "2024-05-01T12:00:00.000Z");
     location.altitude = 12.5;
     location.horizontal_accuracy = 5.0;
-    location.timestamp = Some("2024-05-01T12:00:00.000Z".into());
     record.set_object("text", "hello");
     record.set_object("count", 42_i64);
     record.set_object("ratio", 0.5);
@@ -76,7 +75,10 @@ fn every_value_type_decodes_into_a_cloudkit_record() {
     record.set_object("where", location.clone());
     record.set_object(
         "places",
-        RecordValue::Array(vec![location.into(), RecordLocation::new(0.0, 0.0).into()]),
+        RecordValue::Array(vec![
+            location.into(),
+            RecordLocation::new(0.0, 0.0, "1970-01-01T00:00:00.000Z").into(),
+        ]),
     );
     record.set_object(
         "attachment",
@@ -87,7 +89,22 @@ fn every_value_type_decodes_into_a_cloudkit_record() {
 
     let share = CKShare::new_root_record(&record)
         .expect("every supported value type should decode in Swift");
-    assert_eq!(share.root_record(), Some(&record));
+    let root = share
+        .root_record()
+        .expect("a root-record share returns its root record");
+    assert_eq!(root.all_keys(), record.all_keys());
+    for key in record.all_keys() {
+        assert_eq!(root.object(&key), record.object(&key), "field {key}");
+    }
+    let mut changed_before = record.changed_keys().to_vec();
+    let mut changed_after = root.changed_keys().to_vec();
+    changed_before.sort();
+    changed_after.sort();
+    assert_eq!(changed_after, changed_before);
+    assert_eq!(
+        root.share().map(CKReference::record_id),
+        Some(share.share_record().record_id())
+    );
 }
 
 #[test]

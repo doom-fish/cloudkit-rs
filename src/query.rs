@@ -4,10 +4,10 @@ use core::ptr;
 use crate::error::CloudKitError;
 use crate::ffi;
 use crate::private::{
-    error_from_status, json_cstring, parse_json_ptr, CKQueryPayload, ComparisonOperatorPayload,
-    PredicatePayload, SortDescriptorPayload,
+    error_from_status, json_cstring, parse_json_ptr, CKLocationPayload, CKQueryPayload,
+    ComparisonOperatorPayload, PredicatePayload, SortDescriptorPayload,
 };
-use crate::record::{RecordLocation, RecordValue};
+use crate::record::RecordValue;
 
 /// Wraps `CKQuery.sortDescriptors`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -81,9 +81,10 @@ impl CKLocationSortDescriptor {
         SortDescriptorPayload {
             key: self.key.clone(),
             ascending: true,
-            relative_location: Some(
-                RecordLocation::new(self.relative_latitude, self.relative_longitude).to_payload(),
-            ),
+            relative_location: Some(CKLocationPayload::coordinate(
+                self.relative_latitude,
+                self.relative_longitude,
+            )),
         }
     }
 }
@@ -327,7 +328,7 @@ impl QueryPredicate {
                 radius_kilometers,
             } => PredicatePayload::WithinDistance {
                 key: key.clone(),
-                location: RecordLocation::new(*latitude, *longitude).to_payload(),
+                location: CKLocationPayload::coordinate(*latitude, *longitude),
                 radius_kilometers: *radius_kilometers,
             },
             Self::And(predicates) if predicates.is_empty() => PredicatePayload::TruePredicate,

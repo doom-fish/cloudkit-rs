@@ -226,11 +226,11 @@ pub struct RecordLocation {
     pub vertical_accuracy: f64,
     pub course: f64,
     pub speed: f64,
-    pub timestamp: Option<String>,
+    pub timestamp: String,
 }
 
 impl RecordLocation {
-    pub const fn new(latitude: f64, longitude: f64) -> Self {
+    pub fn new(latitude: f64, longitude: f64, timestamp: impl Into<String>) -> Self {
         Self {
             latitude,
             longitude,
@@ -239,7 +239,7 @@ impl RecordLocation {
             vertical_accuracy: -1.0,
             course: -1.0,
             speed: -1.0,
-            timestamp: None,
+            timestamp: timestamp.into(),
         }
     }
 
@@ -252,7 +252,7 @@ impl RecordLocation {
             vertical_accuracy: payload.vertical_accuracy,
             course: payload.course,
             speed: payload.speed,
-            timestamp: payload.timestamp,
+            timestamp: payload.timestamp.unwrap_or_default(),
         }
     }
 
@@ -265,7 +265,7 @@ impl RecordLocation {
             vertical_accuracy: self.vertical_accuracy,
             course: self.course,
             speed: self.speed,
-            timestamp: self.timestamp.clone(),
+            timestamp: Some(self.timestamp.clone()),
         }
     }
 }
@@ -781,6 +781,47 @@ impl CKRecordKeyValueSetting for CKRecord {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::error::CloudKitErrorCode;
+    use crate::share::CKShare;
+
+    #[test]
+    fn unchanged_fields_are_not_reapplied_when_a_record_crosses_the_bridge() {
+        let mut payload = CKRecord::new("Photo")
+            .expect("record creation should work locally")
+            .to_payload();
+        payload.fields.insert(
+            "image".into(),
+            RecordValue::Asset(CKAsset::from_payload(CKAssetPayload { file_url: None }))
+                .to_payload(),
+        );
+        payload.changed_keys.clear();
+        let fetched = CKRecord::from_payload(payload);
+
+        let share = CKShare::new_root_record(&fetched)
+            .expect("an unchanged asset without a local file must not be staged again");
+        let root = share
+            .root_record()
+            .expect("the share keeps its root record");
+        assert_eq!(root.object("image"), fetched.object("image"));
+        assert!(root.changed_keys().is_empty());
+
+        let mut edited = fetched;
+        edited.set_object("caption", "sunset");
+        let share = CKShare::new_root_record(&edited)
+            .expect("changing another field must not stage the unchanged asset");
+        let root = share
+            .root_record()
+            .expect("the share keeps its root record");
+        assert_eq!(root.changed_keys().to_vec(), vec!["caption".to_owned()]);
+        assert_eq!(root.object("caption"), Some(&RecordValue::from("sunset")));
+        assert_eq!(root.object("image"), edited.object("image"));
+
+        let image = edited.object("image").cloned().expect("image field");
+        edited.set_object("image", image);
+        let error =
+            CKShare::new_root_record(&edited).expect_err("a changed asset needs a local file");
+        assert_eq!(error.kind(), CloudKitErrorCode::BridgeInvalidArgument);
+    }
 
     #[test]
     fn zone_capabilities_support_bit_operations() {

@@ -1,12 +1,13 @@
 use core::ffi::c_char;
 use core::ptr;
 
+use crate::constants::{CK_SHARE_THUMBNAIL_IMAGE_DATA_KEY, CK_SHARE_TITLE_KEY, CK_SHARE_TYPE_KEY};
 use crate::error::CloudKitError;
 use crate::ffi;
 use crate::private::{
     error_from_status, json_cstring, parse_json_ptr, CKShareParticipantPayload, CKSharePayload,
 };
-use crate::record::{CKRecord, CKRecordID, CKRecordZoneID};
+use crate::record::{CKRecord, CKRecordID, CKRecordZoneID, RecordValue};
 use crate::user_identity::CKUserIdentity;
 
 /// Mirrors `CKShareParticipantAcceptanceStatus`.
@@ -244,9 +245,6 @@ pub struct CKShare {
     participants: Vec<CKShareParticipant>,
     owner: Option<CKShareParticipant>,
     current_user_participant: Option<CKShareParticipant>,
-    title: Option<String>,
-    thumbnail_image_data: Option<Vec<u8>>,
-    share_type: Option<String>,
     allows_access_requests: Option<bool>,
     is_zone_wide: bool,
 }
@@ -332,17 +330,26 @@ impl CKShare {
 
     /// Mirrors `CKShare.title`.
     pub fn title(&self) -> Option<&str> {
-        self.title.as_deref()
+        match self.share_record.object(CK_SHARE_TITLE_KEY) {
+            Some(RecordValue::String(title)) => Some(title),
+            _ => None,
+        }
     }
 
     /// Mirrors `CKShare.thumbnailImageData`.
     pub fn thumbnail_image_data(&self) -> Option<&[u8]> {
-        self.thumbnail_image_data.as_deref()
+        match self.share_record.object(CK_SHARE_THUMBNAIL_IMAGE_DATA_KEY) {
+            Some(RecordValue::Bytes(data)) => Some(data),
+            _ => None,
+        }
     }
 
     /// Mirrors `CKShare.shareType`.
     pub fn share_type(&self) -> Option<&str> {
-        self.share_type.as_deref()
+        match self.share_record.object(CK_SHARE_TYPE_KEY) {
+            Some(RecordValue::String(share_type)) => Some(share_type),
+            _ => None,
+        }
     }
 
     /// Mirrors `CKShare.allowsAccessRequests`.
@@ -371,7 +378,8 @@ impl CKShare {
 
     /// Sets the value mirroring `CKShare.title`.
     pub fn with_title(mut self, title: impl Into<String>) -> Result<Self, CloudKitError> {
-        self.title = Some(title.into());
+        self.share_record
+            .set_object(CK_SHARE_TITLE_KEY, RecordValue::String(title.into()));
         self.normalize()
     }
 
@@ -380,13 +388,17 @@ impl CKShare {
         mut self,
         thumbnail_image_data: Vec<u8>,
     ) -> Result<Self, CloudKitError> {
-        self.thumbnail_image_data = Some(thumbnail_image_data);
+        self.share_record.set_object(
+            CK_SHARE_THUMBNAIL_IMAGE_DATA_KEY,
+            RecordValue::Bytes(thumbnail_image_data),
+        );
         self.normalize()
     }
 
     /// Sets the value mirroring `CKShare.shareType`.
     pub fn with_share_type(mut self, share_type: impl Into<String>) -> Result<Self, CloudKitError> {
-        self.share_type = Some(share_type.into());
+        self.share_record
+            .set_object(CK_SHARE_TYPE_KEY, RecordValue::String(share_type.into()));
         self.normalize()
     }
 
@@ -445,9 +457,6 @@ impl CKShare {
             current_user_participant: payload
                 .current_user_participant
                 .map(CKShareParticipant::from_payload),
-            title: payload.title,
-            thumbnail_image_data: payload.thumbnail_image_data,
-            share_type: payload.share_type,
             allows_access_requests: payload.allows_access_requests,
             is_zone_wide: payload.is_zone_wide,
         }
@@ -470,9 +479,6 @@ impl CKShare {
                 .current_user_participant
                 .as_ref()
                 .map(CKShareParticipant::to_payload),
-            title: self.title.clone(),
-            thumbnail_image_data: self.thumbnail_image_data.clone(),
-            share_type: self.share_type.clone(),
             allows_access_requests: self.allows_access_requests,
             is_zone_wide: self.is_zone_wide,
         }
@@ -1038,5 +1044,35 @@ impl CKSystemSharingUIObserver {
         if let Some(handler) = &self.did_stop_sharing_handler {
             handler(record_id, error);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn normalizing_keeps_an_unchanged_title_without_marking_it_changed() {
+        let root = CKRecord::new("ShareTests").expect("record creation should work locally");
+        let mut payload = CKShare::new_root_record(&root)
+            .expect("local share creation should work")
+            .with_title("Trip")
+            .expect("setting a title should work")
+            .to_payload();
+        payload.share_record.changed_keys.clear();
+        let fetched = CKShare::from_payload(payload);
+
+        let normalized = fetched
+            .with_public_permission(CKShareParticipantPermission::ReadOnly)
+            .expect("changing the public permission should work");
+        assert_eq!(normalized.title(), Some("Trip"));
+        assert!(normalized.share_record().changed_keys().is_empty());
+
+        let retitled = normalized.with_title("Hike").expect("retitling should work");
+        assert_eq!(retitled.title(), Some("Hike"));
+        assert_eq!(
+            retitled.share_record().changed_keys().to_vec(),
+            vec![CK_SHARE_TITLE_KEY.to_owned()]
+        );
     }
 }

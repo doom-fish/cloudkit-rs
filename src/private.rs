@@ -52,6 +52,21 @@ pub(crate) struct CKLocationPayload {
     pub timestamp: Option<String>,
 }
 
+impl CKLocationPayload {
+    pub(crate) const fn coordinate(latitude: f64, longitude: f64) -> Self {
+        Self {
+            latitude,
+            longitude,
+            altitude: 0.0,
+            horizontal_accuracy: 0.0,
+            vertical_accuracy: -1.0,
+            course: -1.0,
+            speed: -1.0,
+            timestamp: None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub(crate) enum CKRecordValuePayload {
@@ -321,11 +336,6 @@ pub(crate) struct CKSharePayload {
     pub owner: Option<CKShareParticipantPayload>,
     #[serde(rename = "currentUserParticipant")]
     pub current_user_participant: Option<CKShareParticipantPayload>,
-    pub title: Option<String>,
-    #[serde(rename = "thumbnailImageData")]
-    pub thumbnail_image_data: Option<Vec<u8>>,
-    #[serde(rename = "shareType")]
-    pub share_type: Option<String>,
     #[serde(rename = "allowsAccessRequests")]
     pub allows_access_requests: Option<bool>,
     #[serde(rename = "isZoneWide")]
@@ -745,7 +755,7 @@ mod tests {
                 vertical_accuracy: 3.0,
                 course: 90.0,
                 speed: 1.5,
-                timestamp: Some("2023-11-14T22:13:20.000Z".into()),
+                timestamp: "2023-11-14T22:13:20.000Z".into(),
             })
         );
     }
@@ -755,7 +765,7 @@ mod tests {
         let encoded = serde_json::to_value(
             RecordValue::Array(vec![
                 RecordValue::Asset(CKAsset::new("/tmp/a")),
-                RecordValue::Location(RecordLocation::new(1.0, 2.0)),
+                RecordValue::Location(RecordLocation::new(1.0, 2.0, "2024-01-01T00:00:00.000Z")),
                 RecordValue::Int(i64::MAX),
             ])
             .to_payload(),
@@ -782,7 +792,11 @@ mod tests {
             RecordValue::Bytes(vec![0, 255]),
             RecordValue::Date("2024-01-01T00:00:00.000Z".into()),
             RecordValue::Asset(CKAsset::new("/tmp/b")),
-            RecordValue::Location(RecordLocation::new(-33.9, 151.2)),
+            RecordValue::Location(RecordLocation::new(
+                -33.9,
+                151.2,
+                "2024-01-01T00:00:00.000Z",
+            )),
         ]);
         let json = serde_json::to_string(&value.to_payload()).expect("serialize");
         let decoded: CKRecordValuePayload = serde_json::from_str(&json).expect("deserialize");

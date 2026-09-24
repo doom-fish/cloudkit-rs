@@ -75,6 +75,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `BridgeCloudKitNotEntitled`; opening a container requires the same
   entitlements. In entitled processes these calls run inside the `@try` shim,
   so a CloudKit exception becomes an error.
+- Saving a record re-set every field, so CloudKit wrote unchanged fields
+  again and re-uploaded unchanged assets from their staged files, and saving
+  a fetched record whose asset had no local file failed. Saves now send only
+  the keys set or removed since the record was fetched or saved
+  (`CKRecord::changed_keys`), as a native `CKRecord` does, unless the
+  operation uses `CKRecordSavePolicy::AllKeys`. The saved record that comes back
+  holds every field and no pending changes. A share's title, thumbnail and
+  type are tracked the same way instead of being re-set on every normalize
+  and save.
+- `CKShare::new_root_record` returned the root record without the share
+  reference CloudKit sets on it, so saving the share with that root record
+  dropped the link. `root_record()` now carries the reference.
 
 ### Changed
 
@@ -100,6 +112,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and `simulate_send_changes`; they never contacted CloudKit.
 - **Breaking:** `RecordValue` gained a `Location` variant (the enum was already
   `#[non_exhaustive]`), and `QueryOperationResult` gained a `cursor` field.
+- **Breaking:** saves write only changed keys. Code that relied on a save
+  re-writing every local field must run a `CKModifyRecordsOperation` with
+  `CKRecordSavePolicy::AllKeys`.
 - **Breaking:** `CKShare::remove_participant` returns `BridgeInvalidArgument`
   for the share's owner instead of silently keeping the owner,
   `with_allows_access_requests` returns an error before macOS 26 instead of
@@ -116,7 +131,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `QueryPredicate`, `ComparisonOperator` and `QuerySortDescriptor`.
-- `RecordLocation` and `RecordValue::Location`.
+- `RecordLocation`, whose timestamp is required because `CLLocation` always
+  has one, and `RecordValue::Location`.
 - `CKContainer::with_timeout`, `CKContainer::timeout` and
   `container::DEFAULT_TIMEOUT`.
 - `CKQueryOperation::cursor`/`with_cursor`,

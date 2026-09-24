@@ -121,7 +121,7 @@ public func ckDatabaseSaveRecordSync(
         let payload = try ckDecodeJSON(recordJSON, as: CKRecordPayload.self)
         let outcome = ckRunModifyRecords(
             database: database,
-            recordsToSave: [try ckDecodeRecord(payload)],
+            recordsToSave: [try ckDecodeRecord(payload, allFields: false)],
             recordIDsToDelete: [],
             savePolicy: .ifServerRecordUnchanged,
             atomic: false,
@@ -130,7 +130,7 @@ public func ckDatabaseSaveRecordSync(
         )
         let savedRecord = try outcome.saves.single(label: "CloudKit saveRecord", timeoutSeconds: timeoutSeconds, writes: true)
         do {
-            outJSON?.pointee = ckCString(try ckEncodeJSON(try ckEncodeRecord(savedRecord)))
+            outJSON?.pointee = ckCString(try ckEncodeJSON(try ckEncodeSavedRecord(savedRecord, original: payload)))
         } catch let error as NSError {
             throw ckBridgeNSError(
                 code: CKR_FAILURE,
