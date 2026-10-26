@@ -7,7 +7,7 @@ fn async_account_status_is_graceful_without_entitlements() {
     pollster::block_on(async {
         let container = CKContainer::default();
         match container.account_status_async().await {
-            Ok(status) => assert!(!status.to_string().is_empty()),
+            Ok(status) => assert_ne!(status.to_string(), ""),
             Err(error) => assert!(error.is_entitlement_or_account_issue(), "{error}"),
         }
     });
@@ -18,7 +18,7 @@ fn async_fetch_user_record_id_is_graceful_without_entitlements() {
     pollster::block_on(async {
         let container = CKContainer::default();
         match container.fetch_user_record_id_async().await {
-            Ok(record_id) => assert!(!record_id.record_name().is_empty()),
+            Ok(record_id) => assert_ne!(record_id.record_name(), ""),
             Err(error) => assert!(error.is_entitlement_or_account_issue(), "{error}"),
         }
     });
@@ -75,8 +75,8 @@ fn async_modify_records_or_report_error() {
         let operation = CKModifyRecordsOperation::new(Vec::new(), Vec::new());
         match operation.execute_in_async(&database).await {
             Ok(result) => {
-                assert!(result.saved_records.is_empty());
-                assert!(result.deleted_record_ids.is_empty());
+                assert_eq!(result.saved_records, [] as [cloudkit::CKRecord; 0]);
+                assert_eq!(result.deleted_record_ids, [] as [cloudkit::CKRecordID; 0]);
             }
             Err(error) => assert!(error.is_entitlement_or_account_issue(), "{error}"),
         }

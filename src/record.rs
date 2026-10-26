@@ -803,7 +803,7 @@ mod tests {
             .root_record()
             .expect("the share keeps its root record");
         assert_eq!(root.object("image"), fetched.object("image"));
-        assert!(root.changed_keys().is_empty());
+        assert_eq!(root.changed_keys().len(), 0);
 
         let mut edited = fetched;
         edited.set_object("caption", "sunset");

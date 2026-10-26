@@ -1066,9 +1066,11 @@ mod tests {
             .with_public_permission(CKShareParticipantPermission::ReadOnly)
             .expect("changing the public permission should work");
         assert_eq!(normalized.title(), Some("Trip"));
-        assert!(normalized.share_record().changed_keys().is_empty());
+        assert_eq!(normalized.share_record().changed_keys().len(), 0);
 
-        let retitled = normalized.with_title("Hike").expect("retitling should work");
+        let retitled = normalized
+            .with_title("Hike")
+            .expect("retitling should work");
         assert_eq!(retitled.title(), Some("Hike"));
         assert_eq!(
             retitled.share_record().changed_keys().to_vec(),

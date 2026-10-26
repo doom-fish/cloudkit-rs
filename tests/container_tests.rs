@@ -6,7 +6,7 @@ use cloudkit::prelude::*;
 fn account_status_is_graceful_without_entitlements() {
     let container = CKContainer::default();
     match container.account_status() {
-        Ok(status) => assert!(!status.to_string().is_empty()),
+        Ok(status) => assert_ne!(status.to_string(), ""),
         Err(error) => assert!(error.is_entitlement_or_account_issue(), "{error}"),
     }
 }
